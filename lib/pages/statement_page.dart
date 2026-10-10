@@ -190,7 +190,7 @@ class _StatementPageState extends State<StatementPage> {
               ]),
               const SizedBox(height: 14),
               Row(children: [
-                Expanded(child: Btn('حفظ التقرير PDF', kind: BtnKind.ink, icon: Icons.download, height: 50, onPressed: () => _savePdf(c))),
+                Expanded(child: Btn('حفظ التقرير PDF', kind: BtnKind.red, icon: Icons.download, height: 50, onPressed: () => _savePdf(c))),
                 const SizedBox(width: 10),
                 Expanded(child: Btn('مشاركة', kind: BtnKind.ghost, icon: Icons.share, height: 50, onPressed: () => _share(c))),
               ]),
@@ -225,14 +225,21 @@ class _PurchasesTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = Pal.of(context);
-    Widget cell(String t, {bool head = false, bool bold = false, Color? color}) => Padding(
-          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 3),
-          child: Text(t,
-              style: ts(context,
-                  size: head ? 12 : 13,
-                  weight: head || bold ? FontWeight.w700 : FontWeight.w400,
-                  color: color ?? (head ? p.muted : p.ink))),
-        );
+    // الرؤوس والأرقام تتقلص تلقائيًا بدل أن تنكسر على سطرين.
+    Widget cell(String t, {bool head = false, bool bold = false, Color? color, bool fit = false}) {
+      final text = Text(t,
+          maxLines: (head || fit) ? 1 : null,
+          style: ts(context,
+              size: head ? 12 : 13,
+              weight: head || bold ? FontWeight.w700 : FontWeight.w400,
+              color: color ?? (head ? p.muted : p.ink)));
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 3),
+        child: (head || fit)
+            ? FittedBox(fit: BoxFit.scaleDown, alignment: AlignmentDirectional.centerStart, child: text)
+            : text,
+      );
+    }
 
     if (c.purchases.isEmpty) {
       return Padding(
@@ -243,18 +250,18 @@ class _PurchasesTable extends StatelessWidget {
 
     return Table(
       columnWidths: const {
-        0: FixedColumnWidth(46),
+        0: FixedColumnWidth(48),
         1: FlexColumnWidth(),
-        2: FixedColumnWidth(60),
-        3: FixedColumnWidth(36),
-        4: FixedColumnWidth(70),
+        2: FixedColumnWidth(56),
+        3: FixedColumnWidth(46),
+        4: FixedColumnWidth(62),
       },
       border: TableBorder(horizontalInside: BorderSide(color: p.line)),
       children: [
         TableRow(
           decoration: BoxDecoration(border: Border(bottom: BorderSide(color: p.line, width: 2))),
           children: [
-            cell('التاريخ', head: true),
+            cell('الشهر', head: true),
             cell('المنتج', head: true),
             cell('السعر', head: true),
             cell('الكمية', head: true),
@@ -263,11 +270,11 @@ class _PurchasesTable extends StatelessWidget {
         ),
         for (final x in c.purchases)
           TableRow(children: [
-            cell(fmtDate(x.date), color: p.muted),
+            cell(monthName(x.date.month), color: p.muted, fit: true),
             cell(x.product, bold: true),
-            cell(fmt(x.price)),
-            cell(fmt(x.qty)),
-            cell(fmt(x.total), bold: true),
+            cell(fmt(x.price), fit: true),
+            cell(fmt(x.qty), fit: true),
+            cell(fmt(x.total), bold: true, fit: true),
           ]),
       ],
     );
