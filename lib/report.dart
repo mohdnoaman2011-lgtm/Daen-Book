@@ -41,12 +41,16 @@ Future<Uint8List> buildStatementPdf(Creditor c) async {
         ),
       );
 
+  // pw.Table يرتب الأعمدة من اليسار إلى اليمين حتى في الصفحة العربية،
+  // لذلك نعكس ترتيب الخلايا ليبدأ الجدول من اليمين (الشهر ... الإجمالي).
+  List<String> rtl(List<String> l) => l.reversed.toList();
+
   pw.Widget grid(List<String> headers, List<List<String>> rows) => pw.Table(
         border: pw.TableBorder.all(color: _border, width: 0.7),
         defaultColumnWidth: const pw.FlexColumnWidth(),
         children: [
-          pw.TableRow(children: [for (final h in headers) cell(h, head: true)]),
-          for (final r in rows) pw.TableRow(children: [for (final v in r) cell(v)]),
+          pw.TableRow(children: [for (final h in rtl(headers)) cell(h, head: true)]),
+          for (final r in rows) pw.TableRow(children: [for (final v in rtl(r)) cell(v)]),
         ],
       );
 
