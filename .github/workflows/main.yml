@@ -19,18 +19,18 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          cache: true
 
-      - name: Generate Android folder
-        run: flutter create --platforms=android --project-name debt_book --org com.example .
+      - name: Create Android platform
+        run: flutter create --platforms=android --project-name daen_book --org com.example .
 
       - name: Add INTERNET permission
-        run: sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET"/>\n    <application#' android/app/src/main/AndroidManifest.xml
+        run: |
+          sed -i 's|<manifest xmlns:android="http://schemas.android.com/apk/res/android">|&\n    <uses-permission android:name="android.permission.INTERNET"/>|' android/app/src/main/AndroidManifest.xml
 
-      - name: Force compileSdk 36 for all plugins
+      - name: Force compileSdk 36
         run: |
           mkdir -p ~/.gradle/init.d
-          cat > ~/.gradle/init.d/compilesdk.gradle <<'EOF'
+          cat > ~/.gradle/init.d/compile-sdk.gradle <<'EOF'
           allprojects {
             afterEvaluate { p ->
               if (p.hasProperty('android')) {
@@ -40,11 +40,22 @@ jobs:
           }
           EOF
 
-      - run: flutter pub get
+      - name: Get packages
+        run: flutter pub get
 
-      - run: flutter build apk --release
+      - name: Add custom launcher icon
+        run: |
+          flutter pub add --dev flutter_launcher_icons
+          dart run flutter_launcher_icons
+
+      - name: Set app label
+        run: |
+          sed -i 's|android:label="[^"]*"|android:label="دفتر الديون"|' android/app/src/main/AndroidManifest.xml
+
+      - name: Build APK
+        run: flutter build apk --release
 
       - uses: actions/upload-artifact@v4
         with:
-          name: debt-book-apk
+          name: daen-book-apk
           path: build/app/outputs/flutter-apk/app-release.apk
