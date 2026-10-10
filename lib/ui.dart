@@ -160,7 +160,7 @@ class AppCard extends StatelessWidget {
   }
 }
 
-enum BtnKind { filled, outline, ink, danger, ghost }
+enum BtnKind { filled, outline, ink, danger, ghost, red }
 
 class Btn extends StatelessWidget {
   const Btn(this.label, {super.key, required this.onPressed, this.kind = BtnKind.filled, this.icon, this.height = 52});
@@ -186,6 +186,8 @@ class Btn extends StatelessWidget {
         bg = p.debt; fg = p.debtInk; break;
       case BtnKind.ghost:
         bg = Colors.transparent; fg = p.ink; side = BorderSide(color: p.line, width: 2); break;
+      case BtnKind.red:
+        bg = const Color(0xFFD32F2F); fg = Colors.white; break;
     }
     final text = Text(label, style: ts(context, size: 15, weight: FontWeight.w700, color: fg));
     return SizedBox(
@@ -196,6 +198,7 @@ class Btn extends StatelessWidget {
         style: TextButton.styleFrom(
           backgroundColor: bg,
           disabledBackgroundColor: p.track,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: side),
         ),
         child: icon == null
@@ -203,7 +206,7 @@ class Btn extends StatelessWidget {
             : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 Icon(icon, size: 18, color: fg),
                 const SizedBox(width: 8),
-                text,
+                Flexible(child: FittedBox(fit: BoxFit.scaleDown, child: text)),
               ]),
       ),
     );
