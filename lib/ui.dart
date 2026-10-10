@@ -98,7 +98,7 @@ ThemeData buildTheme(Brightness b) {
   );
 }
 
-void toast(BuildContext context, String msg) {
+void toast(BuildContext context, String msg, {String? actionLabel, VoidCallback? onAction}) {
   final p = Pal.of(context);
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
@@ -107,7 +107,10 @@ void toast(BuildContext context, String msg) {
       backgroundColor: p.ink,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      duration: const Duration(milliseconds: 2400),
+      duration: Duration(milliseconds: onAction == null ? 2400 : 6000),
+      action: onAction == null
+          ? null
+          : SnackBarAction(label: actionLabel ?? 'تراجع', textColor: p.accent, onPressed: onAction),
     ));
 }
 
