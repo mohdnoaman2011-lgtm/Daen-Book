@@ -80,6 +80,7 @@ class DebtStore extends ChangeNotifier {
     required String product,
     required double price,
     required double qty,
+    DateTime? date,
   }) {
     Creditor target;
     if (newName != null && newName.trim().isNotEmpty) {
@@ -93,7 +94,7 @@ class DebtStore extends ChangeNotifier {
       product: product.trim(),
       price: price,
       qty: qty,
-      date: DateTime.now(),
+      date: date ?? DateTime.now(),
     ));
     selectedId = target.id;
     _commit();
