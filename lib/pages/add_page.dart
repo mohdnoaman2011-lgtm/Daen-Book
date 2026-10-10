@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import '../models.dart';
 import '../store.dart';
@@ -18,6 +17,7 @@ class _AddPageState extends State<AddPage> {
   final _price = TextEditingController();
   final _qty = TextEditingController(text: '1');
   bool _newMode = false;
+  int _month = DateTime.now().month;
 
   DebtStore get store => widget.store;
 
@@ -50,14 +50,19 @@ class _AddPageState extends State<AddPage> {
       toast(context, 'اكتب اسم الدائن');
       return;
     }
+    final now = DateTime.now();
+    final year = _month > now.month ? now.year - 1 : now.year;
+    final day = _month == now.month ? now.day : 1;
     final name = store.addPurchase(
       creditorId: store.selected?.id,
       newName: _isNew ? _name.text : null,
       product: _product.text,
       price: price,
       qty: qty,
+      date: DateTime(year, _month, day),
     );
     setState(() {
+      _month = now.month;
       _newMode = false;
       _name.clear();
       _product.clear();
@@ -111,6 +116,27 @@ class _AddPageState extends State<AddPage> {
           const SizedBox(width: 12),
           Expanded(child: LabeledField(label: 'الكمية', hint: '1', controller: _qty, number: true)),
         ]),
+        const SizedBox(height: 16),
+        Text('شهر الشراء', style: ts(context, size: 14, weight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<int>(
+          value: _month,
+          isExpanded: true,
+          items: [
+            for (var m = 1; m <= 12; m++)
+              DropdownMenuItem(value: m, child: Text(monthName(m), style: ts(context, size: 16))),
+          ],
+          onChanged: (v) {
+            if (v != null) setState(() => _month = v);
+          },
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: p.surface,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: p.line)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: p.line)),
+          ),
+        ),
         const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
