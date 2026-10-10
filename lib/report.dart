@@ -17,10 +17,11 @@ const PdfColor _muted = PdfColor.fromInt(0xFF5C6863);
 
 /// تقرير كشف حساب الدائن بصيغة PDF (عربي، من اليمين إلى اليسار).
 /// الترتيب: العنوان، المشتريات، الدفعات، ثم الإجماليات.
-/// يستخدم خط Cairo عبر حزمة printing (يتطلب إنترنت أول مرة).
+/// يستخدم خط Amiri (وصل الحروف العربية فيه سليم مع حزمة pdf)
+/// عبر حزمة printing (يتطلب إنترنت أول مرة).
 Future<Uint8List> buildStatementPdf(Creditor c) async {
-  final regular = await PdfGoogleFonts.cairoRegular();
-  final bold = await PdfGoogleFonts.cairoBold();
+  final regular = await PdfGoogleFonts.amiriRegular();
+  final bold = await PdfGoogleFonts.amiriBold();
   final doc = pw.Document(
     theme: pw.ThemeData.withFont(base: regular, bold: bold),
     title: 'كشف حساب ${c.name}',
