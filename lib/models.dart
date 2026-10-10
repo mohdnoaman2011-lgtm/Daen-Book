@@ -7,6 +7,12 @@ final NumberFormat _numFmt = NumberFormat('#,##0.##', 'en');
 String fmt(num n) => _numFmt.format(n);
 String fmtDate(DateTime d) => DateFormat('dd/MM', 'en').format(d);
 
+const List<String> kMonths = [
+  'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+];
+String monthName(int m) => kMonths[(m - 1).clamp(0, 11).toInt()];
+
 /// يقبل الأرقام العربية والهندية ويحوّلها إلى رقم.
 double? parseNum(String s) {
   const arabic = '٠١٢٣٤٥٦٧٨٩';
