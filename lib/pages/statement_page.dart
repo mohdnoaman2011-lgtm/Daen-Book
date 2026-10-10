@@ -40,18 +40,32 @@ class _StatementPageState extends State<StatementPage> {
     _amount.clear();
     _note.clear();
     FocusScope.of(context).unfocus();
-    toast(context, 'تم تسجيل دفعة ${fmt(paid)} $kCurrency');
+    if (c.settled) {
+      _removeIfSettled(c);
+    } else {
+      toast(context, 'تم تسجيل دفعة ${fmt(paid)} $kCurrency');
+    }
+  }
+
+  /// عند اكتمال السداد يُحذف الدائن من جميع السجلات (مع زر «تراجع» لبضع ثوانٍ).
+  void _removeIfSettled(Creditor c) {
+    if (!c.settled) return;
+    final name = c.name;
+    store.removeCreditor(c.id);
+    toast(
+      context,
+      'تم السداد الكامل وحُذف $name من جميع السجلات',
+      actionLabel: 'تراجع',
+      onAction: store.undoRemove,
+    );
   }
 
   void _payAll(Creditor c) {
-    if (c.settled) {
-      toast(context, 'لا يوجد متبقٍ للسداد');
-      return;
-    }
-    final paid = store.addPayment(c, c.remaining, 'سداد كامل');
+    store.addPayment(c, c.remaining, 'سداد كامل');
     _amount.clear();
     _note.clear();
-    toast(context, 'تم سداد المتبقي بالكامل ${fmt(paid)} $kCurrency');
+    FocusScope.of(context).unfocus();
+    _removeIfSettled(c);
   }
 
   Future<void> _savePdf(Creditor c) async {
