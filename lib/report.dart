@@ -34,10 +34,10 @@ Future<Uint8List> buildStatementPdf(Creditor c) async {
       pw.Text('المشتريات', style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold)),
       pw.SizedBox(height: 6),
       pw.TableHelper.fromTextArray(
-        headers: ['التاريخ', 'المنتج', 'السعر', 'الكمية', 'الإجمالي'],
+        headers: ['الشهر', 'المنتج', 'السعر', 'الكمية', 'الإجمالي'],
         data: [
           for (final p in c.purchases)
-            [fmtDate(p.date), p.product, fmt(p.price), fmt(p.qty), fmt(p.total)],
+            [monthName(p.date.month), p.product, fmt(p.price), fmt(p.qty), fmt(p.total)],
         ],
         headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
         cellStyle: const pw.TextStyle(fontSize: 11),
