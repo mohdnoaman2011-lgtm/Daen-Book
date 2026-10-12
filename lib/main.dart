@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'pages/add_page.dart';
 import 'pages/home_page.dart';
 import 'pages/more_page.dart';
+import 'pages/splash_page.dart';
 import 'pages/statement_page.dart';
 import 'store.dart';
 import 'ui.dart';
@@ -35,7 +36,7 @@ class DebtApp extends StatelessWidget {
         theme: buildTheme(Brightness.light),
         darkTheme: buildTheme(Brightness.dark),
         themeMode: store.themeMode,
-        home: Shell(store: store),
+        home: SplashPage(next: Shell(store: store)),
       ),
     );
   }
