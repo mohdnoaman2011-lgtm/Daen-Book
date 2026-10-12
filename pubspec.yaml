@@ -8,6 +8,9 @@ environment:
 
 dependencies:
   flutter:
+uses-material-design: true
+  assets:
+    - assets/images/logo.png
     sdk: flutter
   flutter_localizations:
     sdk: flutter
