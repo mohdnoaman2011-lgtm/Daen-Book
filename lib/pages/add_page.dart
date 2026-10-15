@@ -16,6 +16,7 @@ class _AddPageState extends State<AddPage> {
   final _product = TextEditingController();
   final _price = TextEditingController();
   final _qty = TextEditingController(text: '1');
+  final _search = TextEditingController();
   bool _newMode = false;
   int _month = DateTime.now().month;
 
@@ -34,14 +35,28 @@ class _AddPageState extends State<AddPage> {
     _product.dispose();
     _price.dispose();
     _qty.dispose();
+    _search.dispose();
     super.dispose();
   }
 
   bool get _isNew => _newMode || store.creditors.isEmpty;
 
-  /// الأكثر تعاملًا أولًا (عدد المشتريات + الدفعات)، ثم الأكبر إجماليًا.
+  /// توحيد الحروف العربية لتسهيل البحث (أ إ آ ← ا، ة ← ه، ى ← ي، وإزالة التشكيل).
+  String _norm(String s) {
+    return s
+        .replaceAll(RegExp('[\u064B-\u0652\u0640]'), '')
+        .replaceAll(RegExp('[أإآ]'), 'ا')
+        .replaceAll('ة', 'ه')
+        .replaceAll('ى', 'ي')
+        .trim()
+        .toLowerCase();
+  }
+
+  /// الأكثر تعاملًا أولًا (عدد المشتريات + الدفعات)، ثم الأكبر إجماليًا،
+  /// مع تصفية الأسماء حسب نص البحث.
   List<Creditor> get _sorted {
-    final l = [...store.creditors];
+    final q = _norm(_search.text);
+    final l = store.creditors.where((c) => q.isEmpty || _norm(c.name).contains(q)).toList();
     l.sort((a, b) {
       final ca = a.purchases.length + a.payments.length;
       final cb = b.purchases.length + b.payments.length;
@@ -77,6 +92,7 @@ class _AddPageState extends State<AddPage> {
       _month = now.month;
       _newMode = false;
       _name.clear();
+      _search.clear();
       _product.clear();
       _price.clear();
       _qty.text = '1';
@@ -90,6 +106,10 @@ class _AddPageState extends State<AddPage> {
     final p = Pal.of(context);
     final selected = store.selected;
     final lineTotal = (parseNum(_price.text) ?? 0) * (parseNum(_qty.text) ?? 0);
+    final list = _sorted;
+    final searching = _search.text.trim().isNotEmpty;
+    OutlineInputBorder border(Color c, [double w = 1]) =>
+        OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: c, width: w));
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
@@ -101,12 +121,43 @@ class _AddPageState extends State<AddPage> {
           if (store.creditors.length > 1)
             Text('الأكثر تعاملًا أولًا', style: ts(context, size: 13, weight: FontWeight.w600, color: p.accent)),
         ]),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
+        if (store.creditors.isNotEmpty) ...[
+          TextField(
+            controller: _search,
+            onChanged: (_) => setState(() {}),
+            textInputAction: TextInputAction.search,
+            style: ts(context, size: 15),
+            decoration: InputDecoration(
+              hintText: 'ابحث عن اسم الدائن',
+              hintStyle: ts(context, size: 14, color: p.muted),
+              prefixIcon: Icon(Icons.search, color: p.muted),
+              suffixIcon: _search.text.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: Icon(Icons.close, color: p.muted),
+                      tooltip: 'مسح البحث',
+                      onPressed: () {
+                        _search.clear();
+                        setState(() {});
+                      },
+                    ),
+              filled: true,
+              fillColor: p.surface,
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              border: border(p.line),
+              enabledBorder: border(p.line),
+              focusedBorder: border(p.accent, 1.6),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             _NewAvatar(selected: _isNew, onTap: () => setState(() => _newMode = true)),
-            for (final c in _sorted)
+            for (final c in list)
               _Avatar(
                 name: c.name,
                 colorIndex: c.id,
@@ -118,6 +169,10 @@ class _AddPageState extends State<AddPage> {
               ),
           ]),
         ),
+        if (searching && list.isEmpty) ...[
+          const SizedBox(height: 4),
+          Text('لا يوجد دائن بهذا الاسم. اضغط «جديد» لإضافته.', style: ts(context, size: 13, color: p.muted)),
+        ],
         if (_isNew) ...[
           const SizedBox(height: 10),
           LabeledField(label: 'اسم الدائن الجديد', hint: 'اكتب اسم الدائن', controller: _name),
