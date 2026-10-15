@@ -182,7 +182,9 @@ const List<Color> _kAvatarColors = [
   Color(0xFF0F6B6B), // تركوازي
 ];
 
-const double _kD = 66; // قطر الدائرة
+const double _kD = 56; // قطر الدائرة
+const double _kRing = 10; // زيادة الحلقة الخارجية
+const double _kItemW = 72; // عرض العنصر (الدائرة + الاسم)
 
 class _Avatar extends StatelessWidget {
   const _Avatar({required this.name, required this.colorIndex, required this.selected, required this.onTap});
@@ -205,17 +207,17 @@ class _Avatar extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: SizedBox(
-        width: 86,
+        width: _kItemW,
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           SizedBox(
-            width: _kD + 12,
-            height: _kD + 12,
+            width: _kD + _kRing,
+            height: _kD + _kRing,
             child: Stack(alignment: Alignment.center, clipBehavior: Clip.none, children: [
               if (selected)
                 Container(
-                  width: _kD + 12,
-                  height: _kD + 12,
-                  decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: p.accent, width: 2.5)),
+                  width: _kD + _kRing,
+                  height: _kD + _kRing,
+                  decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: p.accent, width: 2)),
                 ),
               Container(
                 width: _kD,
@@ -223,21 +225,21 @@ class _Avatar extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(shape: BoxShape.circle, color: selected ? p.accent : bg),
                 child: Text(initial,
-                    style: ts(context, size: 28, weight: FontWeight.w800, color: selected ? p.accentInk : fg)),
+                    style: ts(context, size: 24, weight: FontWeight.w800, color: selected ? p.accentInk : fg)),
               ),
               if (selected)
                 PositionedDirectional(
                   end: 2,
                   bottom: 2,
                   child: Container(
-                    width: 26,
-                    height: 26,
+                    width: 22,
+                    height: 22,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: p.surface,
                       border: Border.all(color: p.accent, width: 2),
                     ),
-                    child: Icon(Icons.check, size: 16, color: p.accent),
+                    child: Icon(Icons.check, size: 14, color: p.accent),
                   ),
                 ),
             ]),
@@ -251,7 +253,7 @@ class _Avatar extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: ts(context,
-                  size: 14,
+                  size: 13,
                   weight: selected ? FontWeight.w800 : FontWeight.w500,
                   color: selected ? p.accent : p.ink),
             ),
@@ -274,11 +276,11 @@ class _NewAvatar extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: SizedBox(
-        width: 86,
+        width: _kItemW,
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           SizedBox(
-            width: _kD + 12,
-            height: _kD + 12,
+            width: _kD + _kRing,
+            height: _kD + _kRing,
             child: Center(
               child: Container(
                 width: _kD,
@@ -289,14 +291,14 @@ class _NewAvatar extends StatelessWidget {
                 ),
                 child: CustomPaint(
                   painter: _DashedCircle(p.accent),
-                  child: Center(child: Icon(Icons.add, size: 34, color: p.accent)),
+                  child: Center(child: Icon(Icons.add, size: 30, color: p.accent)),
                 ),
               ),
             ),
           ),
           const SizedBox(height: 6),
           Text('جديد',
-              style: ts(context, size: 14, weight: selected ? FontWeight.w800 : FontWeight.w600, color: p.accent)),
+              style: ts(context, size: 13, weight: selected ? FontWeight.w800 : FontWeight.w600, color: p.accent)),
         ]),
       ),
     );
@@ -312,14 +314,14 @@ class _DashedCircle extends CustomPainter {
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.6
+      ..strokeWidth = 2.2
       ..strokeCap = StrokeCap.round;
-    final path = Path()..addOval(Rect.fromLTWH(1.3, 1.3, size.width - 2.6, size.height - 2.6));
+    final path = Path()..addOval(Rect.fromLTWH(1.1, 1.1, size.width - 2.2, size.height - 2.2));
     for (final m in path.computeMetrics()) {
       var d = 0.0;
       while (d < m.length) {
-        canvas.drawPath(m.extractPath(d, d + 5), paint);
-        d += 10;
+        canvas.drawPath(m.extractPath(d, d + 4.5), paint);
+        d += 9;
       }
     }
   }
