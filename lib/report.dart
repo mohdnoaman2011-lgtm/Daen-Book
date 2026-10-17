@@ -25,8 +25,8 @@ const Color _muted = Color(0xFF5C6863);
 /// ثم تُضمَّن كصورة داخل ملف PDF، فيظهر التقرير نفسه في أي تطبيق لعرض PDF.
 Future<Uint8List> buildStatementPdf(Creditor c) async {
   await GoogleFonts.pendingFonts([
-    GoogleFonts.cairo(),
-    GoogleFonts.cairo(fontWeight: FontWeight.w700),
+    GoogleFonts.notoSansArabic(),
+    GoogleFonts.notoSansArabic(fontWeight: FontWeight.w700),
   ]);
 
   const double w = 595.0; // عرض A4 بالنقاط
@@ -70,7 +70,7 @@ Future<Uint8List> buildStatementPdf(Creditor c) async {
     final p = TextPainter(
       text: TextSpan(
         text: s,
-        style: GoogleFonts.cairo(
+        style: GoogleFonts.notoSansArabic(
           fontSize: size,
           color: color,
           fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
