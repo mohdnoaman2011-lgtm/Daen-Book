@@ -1,4 +1,4 @@
-name: debt_book
+name: daen_book
 description: دفتر الديون — تطبيق لإدارة ديون الدائنين والمشتريات والدفعات
 publish_to: none
 version: 1.0.0+1
@@ -25,5 +25,11 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^4.0.0
 
+# تثبيت نسخة مكتبة الحفظ: النسخة 2.5.0 (صدرت 17 أكتوبر 2026) تُسقط التطبيق عند التشغيل.
+dependency_overrides:
+  shared_preferences_android: 2.4.28
+
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/logo.png
