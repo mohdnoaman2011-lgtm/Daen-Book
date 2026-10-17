@@ -56,11 +56,8 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
     return Scaffold(
       backgroundColor: _bg,
       body: SafeArea(
-        child: SizedBox(
-          width: double.infinity,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
+        child: Column(
+          children: [
             const Spacer(flex: 5),
             FadeTransition(
               opacity: _logoFade,
@@ -90,7 +87,6 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
             ),
             const SizedBox(height: 40),
           ],
-          ),
         ),
       ),
     );
