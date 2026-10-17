@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:pdf/pdf.dart' show PdfPageFormat;
+import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'models.dart';
 
@@ -77,7 +77,7 @@ Future<Uint8List> buildStatementPdf(Creditor c) async {
           height: 1.35,
         ),
       ),
-      textDirection: ui.TextDirection.rtl,
+      textDirection: TextDirection.rtl,
       textAlign: align,
     );
     p.layout(minWidth: width, maxWidth: width);
