@@ -61,35 +61,35 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Spacer(flex: 5),
-              FadeTransition(
-                opacity: _logoFade,
-                child: ScaleTransition(
-                  scale: _logoScale,
-                  child: Image.asset('assets/images/logo.png', width: w * 0.62),
-                ),
+            const Spacer(flex: 5),
+            FadeTransition(
+              opacity: _logoFade,
+              child: ScaleTransition(
+                scale: _logoScale,
+                child: Image.asset('assets/images/logo.png', width: w * 0.62),
               ),
-              const SizedBox(height: 18),
-              FadeTransition(
-                opacity: _textFade,
-                child: Column(children: [
-                  Container(width: 44, height: 3, decoration: BoxDecoration(color: _gold, borderRadius: BorderRadius.circular(2))),
-                  const SizedBox(height: 14),
-                  Text('سجّل ديونك وتابع سدادها بسهولة',
-                      style: ts(context, size: 15, weight: FontWeight.w600, color: _navy.withOpacity(0.75))),
-                ]),
+            ),
+            const SizedBox(height: 18),
+            FadeTransition(
+              opacity: _textFade,
+              child: Column(children: [
+                Container(width: 44, height: 3, decoration: BoxDecoration(color: _gold, borderRadius: BorderRadius.circular(2))),
+                const SizedBox(height: 14),
+                Text('سجّل ديونك وتابع سدادها بسهولة',
+                    style: ts(context, size: 15, weight: FontWeight.w600, color: _navy.withOpacity(0.75))),
+              ]),
+            ),
+            const Spacer(flex: 4),
+            FadeTransition(
+              opacity: _textFade,
+              child: const SizedBox(
+                width: 26,
+                height: 26,
+                child: CircularProgressIndicator(strokeWidth: 2.6, color: _gold),
               ),
-              const Spacer(flex: 4),
-              FadeTransition(
-                opacity: _textFade,
-                child: const SizedBox(
-                  width: 26,
-                  height: 26,
-                  child: CircularProgressIndicator(strokeWidth: 2.6, color: _gold),
-                ),
-              ),
-              const SizedBox(height: 40),
-            ],
+            ),
+            const SizedBox(height: 40),
+          ],
           ),
         ),
       ),
