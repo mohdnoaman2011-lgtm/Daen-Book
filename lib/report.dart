@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:pdf/pdf.dart';
+import 'package:pdf/pdf.dart' show PdfPageFormat;
 import 'package:pdf/widgets.dart' as pw;
 import 'models.dart';
 
@@ -25,8 +25,8 @@ const Color _muted = Color(0xFF5C6863);
 /// ثم تُضمَّن كصورة داخل ملف PDF، فيظهر التقرير نفسه في أي تطبيق لعرض PDF.
 Future<Uint8List> buildStatementPdf(Creditor c) async {
   await GoogleFonts.pendingFonts([
-    GoogleFonts.cairo(),
-    GoogleFonts.cairo(fontWeight: FontWeight.w700),
+    GoogleFonts.notoSansArabic(),
+    GoogleFonts.notoSansArabic(fontWeight: FontWeight.w700),
   ]);
 
   const double w = 595.0; // عرض A4 بالنقاط
@@ -70,14 +70,14 @@ Future<Uint8List> buildStatementPdf(Creditor c) async {
     final p = TextPainter(
       text: TextSpan(
         text: s,
-        style: GoogleFonts.cairo(
+        style: GoogleFonts.notoSansArabic(
           fontSize: size,
           color: color,
           fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
           height: 1.35,
         ),
       ),
-      textDirection: TextDirection.rtl,
+      textDirection: ui.TextDirection.rtl,
       textAlign: align,
     );
     p.layout(minWidth: width, maxWidth: width);
