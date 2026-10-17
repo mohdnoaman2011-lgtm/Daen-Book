@@ -30,4 +30,32 @@ jobs:
       - name: Set compile SDK
         run: |
           mkdir -p ~/.gradle/init.d
-          cat > ~/.gradle/init.d/c
+          cat > ~/.gradle/init.d/compile-sdk.gradle <<'EOF'
+          allprojects {
+            afterEvaluate { p ->
+              if (p.hasProperty('android')) {
+                p.android.compileSdkVersion 36
+              }
+            }
+          }
+          EOF
+
+      - name: Get packages
+        run: flutter pub get
+
+      - name: Add custom launcher icon
+        run: |
+          flutter pub add --dev flutter_launcher_icons
+          dart run flutter_launcher_icons
+
+      - name: Set app label
+        run: |
+          sed -i 's|android:label="[^"]*"|android:label="دفتر الديون"|' android/app/src/main/AndroidManifest.xml
+
+      - name: Build APK
+        run: flutter build apk --release --no-shrink
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: daen-book-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
