@@ -16,7 +16,6 @@ class _AddPageState extends State<AddPage> {
   final _product = TextEditingController();
   final _price = TextEditingController();
   final _qty = TextEditingController(text: '1');
-  final _search = TextEditingController();
   bool _newMode = false;
   int _month = DateTime.now().month;
 
@@ -27,7 +26,6 @@ class _AddPageState extends State<AddPage> {
     super.initState();
     _price.addListener(() => setState(() {}));
     _qty.addListener(() => setState(() {}));
-    _name.addListener(() => setState(() {}));
   }
 
   @override
@@ -36,29 +34,14 @@ class _AddPageState extends State<AddPage> {
     _product.dispose();
     _price.dispose();
     _qty.dispose();
-    _search.dispose();
     super.dispose();
   }
 
   bool get _isNew => _newMode || store.creditors.isEmpty;
 
-  /// توحيد الحروف العربية لتسهيل البحث (أ إ آ ← ا، ة ← ه، ى ← ي، وإزالة التشكيل).
-  String _norm(String s) {
-    return s
-        .replaceAll(RegExp('[\u064B-\u0652\u0640]'), '')
-        .replaceAll(RegExp('[أإآ]'), 'ا')
-        .replaceAll('ة', 'ه')
-        .replaceAll('ى', 'ي')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim()
-        .toLowerCase();
-  }
-
-  /// الأكثر تعاملًا أولًا (عدد المشتريات + الدفعات)، ثم الأكبر إجماليًا،
-  /// مع تصفية الأسماء حسب نص البحث.
+  /// الأكثر تعاملًا أولًا (عدد المشتريات + الدفعات)، ثم الأكبر إجماليًا.
   List<Creditor> get _sorted {
-    final q = _norm(_search.text);
-    final l = store.creditors.where((c) => q.isEmpty || _norm(c.name).contains(q)).toList();
+    final l = [...store.creditors];
     l.sort((a, b) {
       final ca = a.purchases.length + a.payments.length;
       final cb = b.purchases.length + b.payments.length;
@@ -66,54 +49,6 @@ class _AddPageState extends State<AddPage> {
       return b.total.compareTo(a.total);
     });
     return l;
-  }
-
-  /// يرجع الدائن الموجود بنفس الاسم (بعد توحيد الحروف)، أو null.
-  Creditor? _existing(String name) {
-    final n = _norm(name);
-    if (n.isEmpty) return null;
-    for (final c in store.creditors) {
-      if (_norm(c.name) == n) return c;
-    }
-    return null;
-  }
-
-  Future<void> _showDuplicate(Creditor dup) {
-    final p = Pal.of(context);
-    return showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: p.surface,
-        title: Row(children: [
-          Icon(Icons.warning_amber_rounded, color: p.debt),
-          const SizedBox(width: 8),
-          Expanded(child: Text('هذا الاسم موجود مسبقًا', style: ts(context, size: 17, weight: FontWeight.w800))),
-        ]),
-        content: Text(
-          'يوجد دائن باسم «${dup.name}» في السجلات. هل تريد اختياره وإضافة المشتريات إلى حسابه؟',
-          style: ts(context, size: 14, color: p.muted),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text('تعديل الاسم', style: ts(context, size: 14, weight: FontWeight.w700, color: p.muted)),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: p.accent, foregroundColor: p.accentInk),
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              store.select(dup.id);
-              setState(() {
-                _newMode = false;
-                _name.clear();
-                _search.clear();
-              });
-            },
-            child: Text('اختيار الدائن الموجود', style: ts(context, size: 14, weight: FontWeight.w700, color: p.accentInk)),
-          ),
-        ],
-      ),
-    );
   }
 
   void _submit() {
@@ -126,13 +61,6 @@ class _AddPageState extends State<AddPage> {
     if (_isNew && _name.text.trim().isEmpty) {
       toast(context, 'اكتب اسم الدائن');
       return;
-    }
-    if (_isNew) {
-      final dup = _existing(_name.text);
-      if (dup != null) {
-        _showDuplicate(dup);
-        return;
-      }
     }
     final now = DateTime.now();
     final year = _month > now.month ? now.year - 1 : now.year;
@@ -149,7 +77,6 @@ class _AddPageState extends State<AddPage> {
       _month = now.month;
       _newMode = false;
       _name.clear();
-      _search.clear();
       _product.clear();
       _price.clear();
       _qty.text = '1';
@@ -163,10 +90,6 @@ class _AddPageState extends State<AddPage> {
     final p = Pal.of(context);
     final selected = store.selected;
     final lineTotal = (parseNum(_price.text) ?? 0) * (parseNum(_qty.text) ?? 0);
-    final list = _sorted;
-    final searching = _search.text.trim().isNotEmpty;
-    OutlineInputBorder border(Color c, [double w = 1]) =>
-        OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: c, width: w));
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
@@ -178,43 +101,12 @@ class _AddPageState extends State<AddPage> {
           if (store.creditors.length > 1)
             Text('الأكثر تعاملًا أولًا', style: ts(context, size: 13, weight: FontWeight.w600, color: p.accent)),
         ]),
-        const SizedBox(height: 10),
-        if (store.creditors.isNotEmpty) ...[
-          TextField(
-            controller: _search,
-            onChanged: (_) => setState(() {}),
-            textInputAction: TextInputAction.search,
-            style: ts(context, size: 15),
-            decoration: InputDecoration(
-              hintText: 'ابحث عن اسم الدائن',
-              hintStyle: ts(context, size: 14, color: p.muted),
-              prefixIcon: Icon(Icons.search, color: p.muted),
-              suffixIcon: _search.text.isEmpty
-                  ? null
-                  : IconButton(
-                      icon: Icon(Icons.close, color: p.muted),
-                      tooltip: 'مسح البحث',
-                      onPressed: () {
-                        _search.clear();
-                        setState(() {});
-                      },
-                    ),
-              filled: true,
-              fillColor: p.surface,
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              border: border(p.line),
-              enabledBorder: border(p.line),
-              focusedBorder: border(p.accent, 1.6),
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
+        const SizedBox(height: 12),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             _NewAvatar(selected: _isNew, onTap: () => setState(() => _newMode = true)),
-            for (final c in list)
+            for (final c in _sorted)
               _Avatar(
                 name: c.name,
                 colorIndex: c.id,
@@ -226,24 +118,9 @@ class _AddPageState extends State<AddPage> {
               ),
           ]),
         ),
-        if (searching && list.isEmpty) ...[
-          const SizedBox(height: 4),
-          Text('لا يوجد دائن بهذا الاسم. اضغط «جديد» لإضافته.', style: ts(context, size: 13, color: p.muted)),
-        ],
         if (_isNew) ...[
           const SizedBox(height: 10),
           LabeledField(label: 'اسم الدائن الجديد', hint: 'اكتب اسم الدائن', controller: _name),
-          if (_existing(_name.text) != null) ...[
-            const SizedBox(height: 8),
-            Row(children: [
-              Icon(Icons.warning_amber_rounded, size: 18, color: p.debt),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text('هذا الاسم موجود مسبقًا في السجلات',
-                    style: ts(context, size: 13, weight: FontWeight.w700, color: p.debt)),
-              ),
-            ]),
-          ],
         ] else if (selected != null) ...[
           const SizedBox(height: 8),
           Text.rich(TextSpan(children: [
@@ -305,9 +182,7 @@ const List<Color> _kAvatarColors = [
   Color(0xFF0F6B6B), // تركوازي
 ];
 
-const double _kD = 56; // قطر الدائرة
-const double _kRing = 10; // زيادة الحلقة الخارجية
-const double _kItemW = 72; // عرض العنصر (الدائرة + الاسم)
+const double _kD = 66; // قطر الدائرة
 
 class _Avatar extends StatelessWidget {
   const _Avatar({required this.name, required this.colorIndex, required this.selected, required this.onTap});
@@ -330,17 +205,17 @@ class _Avatar extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: SizedBox(
-        width: _kItemW,
+        width: 86,
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           SizedBox(
-            width: _kD + _kRing,
-            height: _kD + _kRing,
+            width: _kD + 12,
+            height: _kD + 12,
             child: Stack(alignment: Alignment.center, clipBehavior: Clip.none, children: [
               if (selected)
                 Container(
-                  width: _kD + _kRing,
-                  height: _kD + _kRing,
-                  decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: p.accent, width: 2)),
+                  width: _kD + 12,
+                  height: _kD + 12,
+                  decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: p.accent, width: 2.5)),
                 ),
               Container(
                 width: _kD,
@@ -348,21 +223,21 @@ class _Avatar extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(shape: BoxShape.circle, color: selected ? p.accent : bg),
                 child: Text(initial,
-                    style: ts(context, size: 24, weight: FontWeight.w800, color: selected ? p.accentInk : fg)),
+                    style: ts(context, size: 28, weight: FontWeight.w800, color: selected ? p.accentInk : fg)),
               ),
               if (selected)
                 PositionedDirectional(
                   end: 2,
                   bottom: 2,
                   child: Container(
-                    width: 22,
-                    height: 22,
+                    width: 26,
+                    height: 26,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: p.surface,
                       border: Border.all(color: p.accent, width: 2),
                     ),
-                    child: Icon(Icons.check, size: 14, color: p.accent),
+                    child: Icon(Icons.check, size: 16, color: p.accent),
                   ),
                 ),
             ]),
@@ -376,7 +251,7 @@ class _Avatar extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: ts(context,
-                  size: 13,
+                  size: 14,
                   weight: selected ? FontWeight.w800 : FontWeight.w500,
                   color: selected ? p.accent : p.ink),
             ),
@@ -399,11 +274,11 @@ class _NewAvatar extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: SizedBox(
-        width: _kItemW,
+        width: 86,
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           SizedBox(
-            width: _kD + _kRing,
-            height: _kD + _kRing,
+            width: _kD + 12,
+            height: _kD + 12,
             child: Center(
               child: Container(
                 width: _kD,
@@ -414,14 +289,14 @@ class _NewAvatar extends StatelessWidget {
                 ),
                 child: CustomPaint(
                   painter: _DashedCircle(p.accent),
-                  child: Center(child: Icon(Icons.add, size: 30, color: p.accent)),
+                  child: Center(child: Icon(Icons.add, size: 34, color: p.accent)),
                 ),
               ),
             ),
           ),
           const SizedBox(height: 6),
           Text('جديد',
-              style: ts(context, size: 13, weight: selected ? FontWeight.w800 : FontWeight.w600, color: p.accent)),
+              style: ts(context, size: 14, weight: selected ? FontWeight.w800 : FontWeight.w600, color: p.accent)),
         ]),
       ),
     );
@@ -437,14 +312,14 @@ class _DashedCircle extends CustomPainter {
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.2
+      ..strokeWidth = 2.6
       ..strokeCap = StrokeCap.round;
-    final path = Path()..addOval(Rect.fromLTWH(1.1, 1.1, size.width - 2.2, size.height - 2.2));
+    final path = Path()..addOval(Rect.fromLTWH(1.3, 1.3, size.width - 2.6, size.height - 2.6));
     for (final m in path.computeMetrics()) {
       var d = 0.0;
       while (d < m.length) {
-        canvas.drawPath(m.extractPath(d, d + 4.5), paint);
-        d += 9;
+        canvas.drawPath(m.extractPath(d, d + 5), paint);
+        d += 10;
       }
     }
   }
