@@ -10,9 +10,58 @@ import 'ui.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // أي خطأ أثناء البناء يظهر نصه على الشاشة بدل شاشة فارغة.
+  ErrorWidget.builder = (details) => Material(
+        color: Colors.white,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: SingleChildScrollView(
+              child: SelectableText(
+                details.exceptionAsString(),
+                textDirection: TextDirection.ltr,
+                style: const TextStyle(color: Colors.red, fontSize: 13),
+              ),
+            ),
+          ),
+        ),
+      );
   final store = DebtStore();
-  await store.load();
+  try {
+    await store.load().timeout(const Duration(seconds: 8));
+  } catch (e, st) {
+    runApp(_StartupError('$e\n\n$st'));
+    return;
+  }
   runApp(DebtApp(store: store));
+}
+
+/// تظهر عند فشل تحميل البيانات عند التشغيل، لمعرفة السبب.
+class _StartupError extends StatelessWidget {
+  const _StartupError(this.message);
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: SingleChildScrollView(
+              child: SelectableText(
+                'خطأ عند بدء التطبيق:\n\n$message',
+                textDirection: TextDirection.ltr,
+                style: const TextStyle(color: Colors.red, fontSize: 13),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class DebtApp extends StatelessWidget {
