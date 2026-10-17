@@ -27,6 +27,7 @@ class _AddPageState extends State<AddPage> {
     super.initState();
     _price.addListener(() => setState(() {}));
     _qty.addListener(() => setState(() {}));
+    _name.addListener(() => setState(() {}));
   }
 
   @override
@@ -48,6 +49,7 @@ class _AddPageState extends State<AddPage> {
         .replaceAll(RegExp('[أإآ]'), 'ا')
         .replaceAll('ة', 'ه')
         .replaceAll('ى', 'ي')
+        .replaceAll(RegExp(r'\s+'), ' ')
         .trim()
         .toLowerCase();
   }
@@ -66,6 +68,54 @@ class _AddPageState extends State<AddPage> {
     return l;
   }
 
+  /// يرجع الدائن الموجود بنفس الاسم (بعد توحيد الحروف)، أو null.
+  Creditor? _existing(String name) {
+    final n = _norm(name);
+    if (n.isEmpty) return null;
+    for (final c in store.creditors) {
+      if (_norm(c.name) == n) return c;
+    }
+    return null;
+  }
+
+  Future<void> _showDuplicate(Creditor dup) {
+    final p = Pal.of(context);
+    return showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: p.surface,
+        title: Row(children: [
+          Icon(Icons.warning_amber_rounded, color: p.debt),
+          const SizedBox(width: 8),
+          Expanded(child: Text('هذا الاسم موجود مسبقًا', style: ts(context, size: 17, weight: FontWeight.w800))),
+        ]),
+        content: Text(
+          'يوجد دائن باسم «${dup.name}» في السجلات. هل تريد اختياره وإضافة المشتريات إلى حسابه؟',
+          style: ts(context, size: 14, color: p.muted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('تعديل الاسم', style: ts(context, size: 14, weight: FontWeight.w700, color: p.muted)),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: p.accent, foregroundColor: p.accentInk),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              store.select(dup.id);
+              setState(() {
+                _newMode = false;
+                _name.clear();
+                _search.clear();
+              });
+            },
+            child: Text('اختيار الدائن الموجود', style: ts(context, size: 14, weight: FontWeight.w700, color: p.accentInk)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _submit() {
     final price = parseNum(_price.text);
     final qty = parseNum(_qty.text);
@@ -76,6 +126,13 @@ class _AddPageState extends State<AddPage> {
     if (_isNew && _name.text.trim().isEmpty) {
       toast(context, 'اكتب اسم الدائن');
       return;
+    }
+    if (_isNew) {
+      final dup = _existing(_name.text);
+      if (dup != null) {
+        _showDuplicate(dup);
+        return;
+      }
     }
     final now = DateTime.now();
     final year = _month > now.month ? now.year - 1 : now.year;
@@ -176,6 +233,17 @@ class _AddPageState extends State<AddPage> {
         if (_isNew) ...[
           const SizedBox(height: 10),
           LabeledField(label: 'اسم الدائن الجديد', hint: 'اكتب اسم الدائن', controller: _name),
+          if (_existing(_name.text) != null) ...[
+            const SizedBox(height: 8),
+            Row(children: [
+              Icon(Icons.warning_amber_rounded, size: 18, color: p.debt),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text('هذا الاسم موجود مسبقًا في السجلات',
+                    style: ts(context, size: 13, weight: FontWeight.w700, color: p.debt)),
+              ),
+            ]),
+          ],
         ] else if (selected != null) ...[
           const SizedBox(height: 8),
           Text.rich(TextSpan(children: [
