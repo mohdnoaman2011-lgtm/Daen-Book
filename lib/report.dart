@@ -4,9 +4,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:pdf/pdf.dart' show PdfColor, PdfPageFormat;
+import 'package:pdf/pdf.dart' show PdfPageFormat;
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart' show PdfGoogleFonts;
 import 'models.dart';
 
 final NumberFormat _money = NumberFormat('#,##0.00', 'en');
@@ -25,124 +24,6 @@ const Color _muted = Color(0xFF5C6863);
 /// تُرسم الصفحة بمحرك النصوص الخاص بفلاتر (فتظهر الحروف العربية سليمة تمامًا)
 /// ثم تُضمَّن كصورة داخل ملف PDF، فيظهر التقرير نفسه في أي تطبيق لعرض PDF.
 Future<Uint8List> buildStatementPdf(Creditor c) async {
-  // الطريقة الأساسية: نص PDF حقيقي بخط Cairo (نفس طريقة مشروع العقود).
-  // إن تعذّر تحميل الخط (لا إنترنت) نرجع إلى طريقة الصورة أدناه.
-  try {
-    return await _buildVectorPdf(c);
-  } catch (_) {
-    return _buildImagePdf(c);
-  }
-}
-
-PdfColor _pc(Color c) => PdfColor.fromInt(c.toARGB32());
-
-Future<Uint8List> _buildVectorPdf(Creditor c) async {
-  final doc = pw.Document(
-    title: 'Statement',
-    theme: pw.ThemeData.withFont(
-      base: await PdfGoogleFonts.cairoRegular(),
-      bold: await PdfGoogleFonts.cairoBold(),
-    ),
-  );
-  final headBg = _pc(_headBg), border = _pc(_border), teal = _pc(_teal);
-  final muted = _pc(_muted), titleC = _pc(_titleColor);
-
-  pw.Widget cell(String t, {bool bold = false, PdfColor? bg, PdfColor? color, pw.TextAlign align = pw.TextAlign.right}) =>
-      pw.Container(
-        color: bg,
-        padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: pw.Text(
-          t,
-          textAlign: align,
-          style: pw.TextStyle(
-            fontSize: 11,
-            color: color,
-            fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
-          ),
-        ),
-      );
-
-  pw.Widget heading(String s) => pw.Padding(
-        padding: const pw.EdgeInsets.only(top: 18, bottom: 6),
-        child: pw.Align(
-          alignment: pw.Alignment.centerRight,
-          child: pw.Text(s, style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
-        ),
-      );
-
-  // الأعمدة تُعكس يدويًا ليظهر العمود الأول في أقصى اليمين.
-  pw.Widget table(List<String> head, List<List<String>> rows) => pw.TableHelper.fromTextArray(
-        headers: head.reversed.toList(),
-        data: [for (final r in rows) r.reversed.toList()],
-        border: pw.TableBorder.all(color: border, width: 0.7),
-        headerStyle: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: muted),
-        headerDecoration: pw.BoxDecoration(color: headBg),
-        cellStyle: const pw.TextStyle(fontSize: 11),
-        cellAlignment: pw.Alignment.center,
-        headerAlignment: pw.Alignment.center,
-        cellPadding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 7),
-      );
-
-  // القيمة أولًا ثم العنوان ليظهر العنوان على اليمين.
-  pw.Widget sum(String label, String value, {bool last = false}) {
-    final col = last ? PdfColor.fromInt(0xFFFFFFFF) : null;
-    return pw.Table(
-      border: pw.TableBorder.all(color: border, width: 0.7),
-      columnWidths: {0: const pw.FlexColumnWidth(1), 1: const pw.FlexColumnWidth(2)},
-      children: [
-        pw.TableRow(
-          decoration: last ? pw.BoxDecoration(color: teal) : null,
-          children: [
-            cell(value, bold: last, color: col, align: pw.TextAlign.left),
-            cell(label, bold: last, color: col),
-          ],
-        ),
-      ],
-    );
-  }
-
-  doc.addPage(
-    pw.MultiPage(
-      pageFormat: PdfPageFormat.a4,
-      textDirection: pw.TextDirection.rtl,
-      margin: const pw.EdgeInsets.all(28),
-      build: (_) => [
-        pw.Center(
-          child: pw.Text(
-            'كشف حساب: ${c.name}',
-            style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: titleC),
-          ),
-        ),
-        pw.SizedBox(height: 10),
-        heading('المشتريات'),
-        table(
-          ['الشهر', 'المنتج', 'الكمية', 'السعر', 'الإجمالي'],
-          [
-            for (final p in c.purchases)
-              [monthName(p.date.month), p.product, fmt(p.qty), _m(p.price), _m(p.total)],
-          ],
-        ),
-        if (c.payments.isNotEmpty) ...[
-          heading('الدفعات'),
-          table(
-            ['التاريخ', 'المبلغ', 'ملاحظة'],
-            [
-              for (final p in c.payments)
-                [_d(p.date), _m(p.amount), p.note.isEmpty ? '-' : p.note],
-            ],
-          ),
-        ],
-        pw.SizedBox(height: 22),
-        sum('إجمالي المشتريات', _m(c.total)),
-        sum('إجمالي المدفوع', _m(c.paid)),
-        sum('المتبقي على الدائن', _m(c.remaining), last: true),
-      ],
-    ),
-  );
-  return doc.save();
-}
-
-Future<Uint8List> _buildImagePdf(Creditor c) async {
   await GoogleFonts.pendingFonts([
     GoogleFonts.cairo(),
     GoogleFonts.cairo(fontWeight: FontWeight.w700),
@@ -150,7 +31,7 @@ Future<Uint8List> _buildImagePdf(Creditor c) async {
 
   const double w = 595.0; // عرض A4 بالنقاط
   const double h = 842.0; // ارتفاع A4 بالنقاط
-  const double k = 3.0; // دقة الصورة
+  const double k = 4.0; // دقة الصورة
   const double m = 28.0; // الهامش
   const double cw = w - 2 * m; // عرض المحتوى
 
