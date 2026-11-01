@@ -130,7 +130,7 @@ class MorePage extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
       children: [
-        const ScreenHeader('المزيد'),
+        const ScreenHeader('الإعدادات', 'الأمان والنسخ الاحتياطي والمظهر'),
         const SizedBox(height: 16),
 
         AppCard(
