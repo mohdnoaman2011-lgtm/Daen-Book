@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
+import '../backup.dart';
+import '../models.dart';
 import '../store.dart';
 import '../ui.dart';
+import 'lock_page.dart';
 
 class MorePage extends StatelessWidget {
   const MorePage({super.key, required this.store});
@@ -27,37 +27,83 @@ class MorePage extends StatelessWidget {
     return r ?? false;
   }
 
-  Future<void> _backup(BuildContext context) async {
-    if (store.creditors.isEmpty) {
-      toast(context, 'لا توجد بيانات للنسخ');
-      return;
-    }
-    final stamp = DateTime.now().toIso8601String().substring(0, 10);
-    final name = 'debt_book_backup_$stamp.json';
-    final bytes = Uint8List.fromList(utf8.encode(store.exportJson()));
-    // 1) الحفظ مباشرة على الهاتف (يختار المستخدم المجلد).
+  Future<void> _backup(BuildContext context) => runBackup(context, store);
+
+  /// قائمة النسخ التلقائية الأسبوعية المحفوظة داخل التطبيق.
+  Future<void> _autoBackups(BuildContext context) async {
+    final files = await store.listAutoBackups();
+    if (!context.mounted) return;
+    final p = Pal.of(context);
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: p.surface,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('النسخ التلقائية', style: ts(ctx, size: 17, weight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            Text('تُحفظ تلقائيًا كل أسبوع داخل التطبيق (آخر 5 نسخ). تُحذف إن حُذف التطبيق، فاحفظ نسخة خارجية أيضًا.',
+                style: ts(ctx, size: 13, color: p.muted, height: 1.6)),
+            const SizedBox(height: 10),
+            if (files.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Text('لا توجد نسخ تلقائية بعد. تُنشأ أول نسخة عند أول فتح بعد أسبوع.',
+                    style: ts(ctx, size: 14, color: p.muted)),
+              )
+            else
+              for (final f in files)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.history, color: p.accent),
+                  title: Text(
+                    f.path.split('/').last.replaceFirst('auto_', '').replaceFirst('.json', ''),
+                    style: ts(ctx, size: 15, weight: FontWeight.w700),
+                  ),
+                  trailing: Text('استعادة', style: ts(ctx, size: 14, weight: FontWeight.w700, color: p.accent)),
+                  onTap: () async {
+                    Navigator.of(ctx).pop();
+                    await _restoreAuto(context, f);
+                  },
+                ),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _restoreAuto(BuildContext context, File f) async {
     try {
-      final path = await FilePicker.platform.saveFile(
-        dialogTitle: 'حفظ النسخة الاحتياطية',
-        fileName: name,
-        bytes: bytes,
-        type: FileType.custom,
-        allowedExtensions: ['json'],
-      );
-      if (path != null) {
-        if (context.mounted) toast(context, 'تم حفظ النسخة الاحتياطية');
-        return;
-      }
-      return; // أُلغي الحفظ
-    } catch (_) {}
-    // 2) إن تعذّر، نحاول المشاركة كملف.
-    try {
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/$name');
-      await file.writeAsBytes(bytes, flush: true);
-      await Share.shareXFiles([XFile(file.path, mimeType: 'application/json', name: name)]);
+      final raw = await f.readAsString();
+      if (!context.mounted) return;
+      final ok = await _confirm(context, 'استعادة نسخة تلقائية', 'ستُستبدل البيانات الحالية بمحتوى هذه النسخة.', 'استعادة');
+      if (!ok) return;
+      store.importJson(raw);
+      if (context.mounted) toast(context, 'تمت استعادة البيانات');
     } catch (_) {
-      if (context.mounted) toast(context, 'تعذر إنشاء النسخة الاحتياطية');
+      if (context.mounted) toast(context, 'تعذرت استعادة النسخة');
+    }
+  }
+
+  Future<void> _togglePin(BuildContext context, bool on) async {
+    if (on) {
+      final ok = await showPinSetupDialog(context, store);
+      if (ok && context.mounted) toast(context, 'تم تفعيل قفل التطبيق');
+    } else {
+      final ok = await showPinVerifyDialog(context, store);
+      if (ok) {
+        await store.clearPin();
+        if (context.mounted) toast(context, 'تم إلغاء قفل التطبيق');
+      }
+    }
+  }
+
+  Future<void> _changePin(BuildContext context) async {
+    final ok = await showPinVerifyDialog(context, store);
+    if (ok && context.mounted) {
+      final done = await showPinSetupDialog(context, store);
+      if (done && context.mounted) toast(context, 'تم تغيير الرمز');
     }
   }
 
@@ -94,11 +140,46 @@ class MorePage extends StatelessWidget {
             Text('بياناتك محفوظة على هذا الهاتف فقط. احفظ نسخة احتياطية بشكل دوري وخزّنها خارج الهاتف.',
                 style: ts(context, size: 14, color: p.muted, height: 1.7)),
             const SizedBox(height: 12),
+            Text(
+              store.lastBackup == null
+                  ? 'آخر نسخة احتياطية: لم تُؤخذ بعد'
+                  : 'آخر نسخة احتياطية: ${fmtDateFull(store.lastBackup!)} (${store.daysSinceBackup == 0 ? 'اليوم' : 'قبل ${store.daysSinceBackup} يومًا'})',
+              style: ts(context, size: 13, weight: FontWeight.w700, color: store.backupDue || store.lastBackup == null ? p.debt : p.ok),
+            ),
+            const SizedBox(height: 12),
             Row(children: [
               Expanded(child: Btn('نسخة احتياطية', height: 50, onPressed: () => _backup(context))),
               const SizedBox(width: 10),
               Expanded(child: Btn('استعادة', kind: BtnKind.outline, height: 50, onPressed: () => _restore(context))),
             ]),
+            const SizedBox(height: 10),
+            Btn('النسخ التلقائية الأسبوعية', kind: BtnKind.ghost, icon: Icons.history, height: 46, onPressed: () => _autoBackups(context)),
+          ]),
+        ),
+        const SizedBox(height: 16),
+
+        AppCard(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('الأمان', style: ts(context, size: 17, weight: FontWeight.w700)),
+            const SizedBox(height: 12),
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Text('قفل التطبيق برمز', style: ts(context, size: 15, weight: FontWeight.w600)),
+              Switch(
+                value: store.pinEnabled,
+                onChanged: (v) => _togglePin(context, v),
+                thumbColor: WidgetStatePropertyAll(store.pinEnabled ? p.accent : p.muted),
+                trackColor: WidgetStatePropertyAll(
+                    store.pinEnabled ? p.accent.withOpacity(0.4) : p.track),
+                trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+              ),
+            ]),
+            const SizedBox(height: 6),
+            Text('يُطلب الرمز عند فتح التطبيق وبعد البقاء خارجه دقيقة أو أكثر.',
+                style: ts(context, size: 13, color: p.muted, height: 1.6)),
+            if (store.pinEnabled) ...[
+              const SizedBox(height: 10),
+              Btn('تغيير الرمز', kind: BtnKind.ghost, height: 44, onPressed: () => _changePin(context)),
+            ],
           ]),
         ),
         const SizedBox(height: 16),

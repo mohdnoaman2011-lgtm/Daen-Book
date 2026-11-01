@@ -4,6 +4,7 @@ import '../models.dart';
 import '../report.dart';
 import '../store.dart';
 import '../ui.dart';
+import 'edit_dialogs.dart';
 
 class StatementPage extends StatefulWidget {
   const StatementPage({super.key, required this.store});
@@ -16,6 +17,7 @@ class StatementPage extends StatefulWidget {
 class _StatementPageState extends State<StatementPage> {
   final _amount = TextEditingController();
   final _note = TextEditingController();
+  String _method = kMethods.first;
 
   DebtStore get store => widget.store;
 
@@ -36,36 +38,104 @@ class _StatementPageState extends State<StatementPage> {
       toast(context, 'لا يوجد متبقٍ للسداد');
       return;
     }
-    final paid = store.addPayment(c, v, _note.text);
+    final paid = store.addPayment(c, v, _note.text, method: _method);
     _amount.clear();
     _note.clear();
     FocusScope.of(context).unfocus();
-    if (c.settled) {
-      _removeIfSettled(c);
-    } else {
-      toast(context, 'تم تسجيل دفعة ${fmt(paid)} $kCurrency');
-    }
-  }
-
-  /// عند اكتمال السداد يُحذف الدائن من جميع السجلات (مع زر «تراجع» لبضع ثوانٍ).
-  void _removeIfSettled(Creditor c) {
-    if (!c.settled) return;
-    final name = c.name;
-    store.removeCreditor(c.id);
-    toast(
-      context,
-      'تم السداد الكامل وحُذف $name من جميع السجلات',
-      actionLabel: 'تراجع',
-      onAction: store.undoRemove,
-    );
+    _afterPayment(c, paid);
   }
 
   void _payAll(Creditor c) {
-    store.addPayment(c, c.remaining, 'سداد كامل');
+    if (c.settled) {
+      toast(context, 'لا يوجد متبقٍ للسداد');
+      return;
+    }
+    final paid = store.addPayment(c, c.remaining, 'سداد كامل', method: _method);
     _amount.clear();
     _note.clear();
     FocusScope.of(context).unfocus();
-    _removeIfSettled(c);
+    _afterPayment(c, paid);
+  }
+
+  /// بعد كل دفعة: نافذة تعرض النتيجة مع زرّي الإيصال والمشاركة.
+  /// عند اكتمال السداد يُؤرشف الدائن (لا يُحذف) مع زر «تراجع».
+  Future<void> _afterPayment(Creditor c, double paid) async {
+    final idx = c.payments.length - 1;
+    final settled = c.settled;
+    final name = c.name;
+    final remaining = c.remaining;
+    if (settled) store.archiveCreditor(c);
+    if (!mounted) return;
+    final p = Pal.of(context);
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: p.surface,
+        title: Row(children: [
+          Icon(Icons.check_circle, color: p.ok),
+          const SizedBox(width: 8),
+          Expanded(child: Text('تم تسجيل الدفعة', style: ts(ctx, size: 18, weight: FontWeight.w800))),
+        ]),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('${fmt(paid)} $kCurrency من $name', style: ts(ctx, size: 15, weight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          Text(
+            settled ? 'اكتمل السداد، ونُقل الدائن إلى الأرشيف.' : 'المتبقي: ${fmt(remaining)} $kCurrency',
+            style: ts(ctx, size: 14, color: p.muted),
+          ),
+        ]),
+        actionsOverflowButtonSpacing: 4,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('إغلاق', style: ts(ctx, size: 14, weight: FontWeight.w700, color: p.muted)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _receipt(c, idx, share: true);
+            },
+            child: Text('مشاركة الإيصال', style: ts(ctx, size: 14, weight: FontWeight.w700, color: p.accent)),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: p.accent, foregroundColor: p.accentInk),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _receipt(c, idx, share: false);
+            },
+            child: Text('إيصال PDF', style: ts(ctx, size: 14, weight: FontWeight.w700, color: p.accentInk)),
+          ),
+        ],
+      ),
+    );
+    if (settled && mounted) {
+      toast(context, 'نُقل $name إلى الأرشيف', actionLabel: 'تراجع', onAction: store.undoLast);
+    }
+  }
+
+  Future<void> _receipt(Creditor c, int idx, {required bool share}) async {
+    if (idx < 0 || idx >= c.payments.length) return;
+    try {
+      final bytes = await buildReceiptPdf(c, idx);
+      final name = 'receipt_${c.id}_${idx + 1}.pdf';
+      if (share) {
+        await Printing.sharePdf(bytes: bytes, filename: name);
+      } else {
+        await Printing.layoutPdf(onLayout: (_) async => bytes, name: name);
+      }
+    } catch (_) {
+      if (mounted) toast(context, 'تعذر إنشاء الإيصال. تأكد من الاتصال بالإنترنت لأول مرة (تحميل الخط).');
+    }
+  }
+
+  void _deletePurchase(Creditor c, int i) {
+    store.deletePurchase(c, i);
+    toast(context, 'تم حذف العملية', actionLabel: 'تراجع', onAction: store.undoLast);
+  }
+
+  void _deletePayment(Creditor c, int i) {
+    store.deletePayment(c, i);
+    toast(context, 'تم حذف الدفعة', actionLabel: 'تراجع', onAction: store.undoLast);
   }
 
   Future<void> _savePdf(Creditor c) async {
@@ -100,7 +170,7 @@ class _StatementPageState extends State<StatementPage> {
           AppCard(
             radius: 16,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
-            child: Center(child: Text('لا يوجد دائنون مسجلون. أضف مشتريات أولًا.', style: ts(context, size: 15, color: p.muted))),
+            child: Center(child: Text(store.creditors.isEmpty ? 'لا يوجد دائنون مسجلون. أضف مشتريات أولًا.' : 'لا يوجد دائنون نشطون. افتح الأرشيف من الشاشة الرئيسية.', textAlign: TextAlign.center, style: ts(context, size: 15, color: p.muted))),
           )
         else ...[
           Text('اختر الدائن', style: ts(context, size: 14, weight: FontWeight.w600)),
@@ -109,8 +179,8 @@ class _StatementPageState extends State<StatementPage> {
             value: c.id,
             isExpanded: true,
             items: [
-              for (final x in store.creditors)
-                DropdownMenuItem(value: x.id, child: Text(x.name, style: ts(context, size: 16))),
+              for (final x in [...store.active, if (c.archived) c])
+                DropdownMenuItem(value: x.id, child: Text(c.archived && x.id == c.id ? '${x.name} (مؤرشف)' : x.name, style: ts(context, size: 16))),
             ],
             onChanged: (v) {
               if (v != null) store.select(v);
@@ -141,7 +211,9 @@ class _StatementPageState extends State<StatementPage> {
               const SizedBox(height: 14),
               LabeledField(label: 'المبلغ المدفوع', hint: '0', controller: _amount, number: true),
               const SizedBox(height: 14),
-              LabeledField(label: 'ملاحظة', hint: 'مثال: دفعة نقدًا', controller: _note, optional: true),
+              MethodChips(value: _method, onChanged: (m) => setState(() => _method = m)),
+              const SizedBox(height: 14),
+              LabeledField(label: 'ملاحظة', hint: 'مثال: دفعة من الحساب', controller: _note, optional: true),
               const SizedBox(height: 14),
               Btn('تسجيل الدفعة', onPressed: () => _payPart(c)),
               const SizedBox(height: 10),
@@ -158,22 +230,43 @@ class _StatementPageState extends State<StatementPage> {
                 Flexible(child: Text(c.name, overflow: TextOverflow.ellipsis, style: ts(context, size: 14, weight: FontWeight.w600, color: p.muted))),
               ]),
               const SizedBox(height: 12),
-              _PurchasesTable(c: c),
+              _PurchasesTable(
+                c: c,
+                onEdit: (i) => showEditPurchase(context, store, c, i),
+                onDelete: (i) => _deletePurchase(c, i),
+              ),
               if (c.payments.isNotEmpty) ...[
                 const SizedBox(height: 14),
                 Text('الدفعات', style: ts(context, size: 13, weight: FontWeight.w700, color: p.muted)),
                 const SizedBox(height: 6),
-                for (final y in c.payments)
+                for (var i = 0; i < c.payments.length; i++)
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    padding: const EdgeInsets.symmetric(vertical: 2),
                     child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                      Flexible(
+                      Expanded(
                         child: Text.rich(TextSpan(children: [
-                          TextSpan(text: '${fmtDate(y.date)}  ', style: ts(context, size: 13, color: p.muted)),
-                          TextSpan(text: y.note, style: ts(context, size: 13)),
+                          TextSpan(text: '${fmtDate(c.payments[i].date)}  ', style: ts(context, size: 13, color: p.muted)),
+                          if (c.payments[i].method.isNotEmpty)
+                            TextSpan(text: '${c.payments[i].method}  ', style: ts(context, size: 12, weight: FontWeight.w700, color: p.accent)),
+                          TextSpan(text: c.payments[i].note, style: ts(context, size: 13)),
                         ])),
                       ),
-                      Text('− ${fmt(y.amount)}', style: ts(context, size: 13, weight: FontWeight.w700, color: p.ok)),
+                      Text('− ${fmt(c.payments[i].amount)}', style: ts(context, size: 13, weight: FontWeight.w700, color: p.ok)),
+                      _RowMenu(
+                        items: const {'receipt': 'إيصال PDF', 'share': 'مشاركة الإيصال', 'edit': 'تعديل', 'delete': 'حذف'},
+                        onSelected: (v) {
+                          switch (v) {
+                            case 'receipt':
+                              _receipt(c, i, share: false);
+                            case 'share':
+                              _receipt(c, i, share: true);
+                            case 'edit':
+                              showEditPayment(context, store, c, i);
+                            case 'delete':
+                              _deletePayment(c, i);
+                          }
+                        },
+                      ),
                     ]),
                   ),
               ],
@@ -203,6 +296,17 @@ class _StatementPageState extends State<StatementPage> {
                 Text('100%', style: ts(context, size: 11, color: p.muted)),
               ]),
               const SizedBox(height: 14),
+              if (c.archived) ...[
+                Btn('إعادة الدائن من الأرشيف', kind: BtnKind.outline, height: 48, onPressed: () => store.unarchiveCreditor(c)),
+                const SizedBox(height: 10),
+              ] else if (c.settled && c.purchases.isNotEmpty) ...[
+                Btn('نقل الدائن إلى الأرشيف', kind: BtnKind.outline, height: 48, onPressed: () {
+                  final n = c.name;
+                  store.archiveCreditor(c);
+                  toast(context, 'نُقل $n إلى الأرشيف', actionLabel: 'تراجع', onAction: store.undoLast);
+                }),
+                const SizedBox(height: 10),
+              ],
               Row(children: [
                 Expanded(child: Btn('حفظ التقرير PDF', kind: BtnKind.red, icon: Icons.download, height: 50, onPressed: () => _savePdf(c))),
                 const SizedBox(width: 10),
@@ -232,9 +336,41 @@ class _SumRow extends StatelessWidget {
   }
 }
 
+/// قائمة منبثقة صغيرة لكل صف (تعديل / حذف ...).
+class _RowMenu extends StatelessWidget {
+  const _RowMenu({required this.items, required this.onSelected});
+  final Map<String, String> items;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Pal.of(context);
+    return SizedBox(
+      width: 34,
+      height: 34,
+      child: PopupMenuButton<String>(
+        padding: EdgeInsets.zero,
+        icon: Icon(Icons.more_vert, size: 18, color: p.muted),
+        color: p.surface,
+        onSelected: onSelected,
+        itemBuilder: (_) => [
+          for (final e in items.entries)
+            PopupMenuItem<String>(
+              value: e.key,
+              child: Text(e.value,
+                  style: ts(context, size: 14, weight: FontWeight.w600, color: e.key == 'delete' ? p.debt : null)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PurchasesTable extends StatelessWidget {
-  const _PurchasesTable({required this.c});
+  const _PurchasesTable({required this.c, required this.onEdit, required this.onDelete});
   final Creditor c;
+  final ValueChanged<int> onEdit;
+  final ValueChanged<int> onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -263,32 +399,39 @@ class _PurchasesTable extends StatelessWidget {
     }
 
     return Table(
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
       columnWidths: const {
         0: FixedColumnWidth(48),
         1: FlexColumnWidth(),
         2: FixedColumnWidth(56),
         3: FixedColumnWidth(46),
         4: FixedColumnWidth(62),
+        5: FixedColumnWidth(34),
       },
       border: TableBorder(horizontalInside: BorderSide(color: p.line)),
       children: [
         TableRow(
           decoration: BoxDecoration(border: Border(bottom: BorderSide(color: p.line, width: 2))),
           children: [
-            cell('الشهر', head: true),
+            cell('التاريخ', head: true),
             cell('المنتج', head: true),
             cell('السعر', head: true),
             cell('الكمية', head: true),
             cell('الإجمالي', head: true),
+            const SizedBox(),
           ],
         ),
-        for (final x in c.purchases)
+        for (var i = 0; i < c.purchases.length; i++)
           TableRow(children: [
-            cell(monthName(x.date.month), color: p.muted, fit: true),
-            cell(x.product, bold: true),
-            cell(fmt(x.price), fit: true),
-            cell(fmt(x.qty), fit: true),
-            cell(fmt(x.total), bold: true, fit: true),
+            cell(fmtDate(c.purchases[i].date), color: p.muted, fit: true),
+            cell(c.purchases[i].product, bold: true),
+            cell(fmt(c.purchases[i].price), fit: true),
+            cell(fmt(c.purchases[i].qty), fit: true),
+            cell(fmt(c.purchases[i].total), bold: true, fit: true),
+            _RowMenu(
+              items: const {'edit': 'تعديل', 'delete': 'حذف'},
+              onSelected: (v) => v == 'edit' ? onEdit(i) : onDelete(i),
+            ),
           ]),
       ],
     );

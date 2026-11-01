@@ -1,25 +1,39 @@
 import 'package:flutter/material.dart';
+import '../backup.dart';
 import '../models.dart';
 import '../store.dart';
 import '../ui.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.store});
   final DebtStore store;
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  bool _showArchive = false;
+  DebtStore get store => widget.store;
 
   @override
   Widget build(BuildContext context) {
     final p = Pal.of(context);
     final rows = store.sorted;
+    final archived = store.archivedList;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
       children: [
         const ScreenHeader('دفتر الديون', 'ملخص حساباتك مع الدائنين'),
         const SizedBox(height: 16),
+        if (store.backupDue) ...[
+          _BackupBanner(store: store),
+          const SizedBox(height: 12),
+        ],
         IntrinsicHeight(
           child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Expanded(child: _Stat('عدد الدائنين المسجلين', child: Text('${store.creditors.length}', style: ts(context, size: 26, weight: FontWeight.w800)))),
+            Expanded(child: _Stat('دائنون عليهم متبقٍ', child: Text('${store.owingCount}', style: ts(context, size: 26, weight: FontWeight.w800, color: store.owingCount > 0 ? p.debt : p.ok)))),
             const SizedBox(width: 12),
             Expanded(child: _Stat('إجمالي الديون', child: Money(store.totalDebt))),
           ]),
@@ -72,7 +86,100 @@ class HomePage extends StatelessWidget {
             _CreditorRow(rank: i + 1, c: rows[i], onTap: () => store.openStatement(rows[i].id)),
             const SizedBox(height: 10),
           ],
+        if (archived.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => setState(() => _showArchive = !_showArchive),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(children: [
+                Icon(Icons.inventory_2_outlined, size: 20, color: p.muted),
+                const SizedBox(width: 8),
+                Expanded(child: Text('الأرشيف (${archived.length})', style: ts(context, size: 15, weight: FontWeight.w700, color: p.muted))),
+                Icon(_showArchive ? Icons.expand_less : Icons.expand_more, color: p.muted),
+              ]),
+            ),
+          ),
+          if (_showArchive)
+            for (final c in archived) ...[
+              const SizedBox(height: 8),
+              _ArchivedRow(c: c, onOpen: () => store.openStatement(c.id), onRestore: () => store.unarchiveCreditor(c)),
+            ],
+        ],
       ],
+    );
+  }
+}
+
+/// تذكير بأخذ نسخة احتياطية إن مضى أسبوع.
+class _BackupBanner extends StatelessWidget {
+  const _BackupBanner({required this.store});
+  final DebtStore store;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Pal.of(context);
+    final d = store.daysSinceBackup;
+    final msg = d == null ? 'لم تأخذ نسخة احتياطية بعد.' : 'مضى $d يومًا على آخر نسخة احتياطية.';
+    return AppCard(
+      color: p.dangerBg,
+      borderColor: p.debt,
+      radius: 16,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.backup_outlined, color: p.debt),
+          const SizedBox(width: 8),
+          Expanded(child: Text(msg, style: ts(context, size: 14, weight: FontWeight.w700))),
+        ]),
+        const SizedBox(height: 4),
+        Text('احفظ نسخة خارج الهاتف حتى لا تضيع بياناتك.', style: ts(context, size: 13, color: p.muted)),
+        const SizedBox(height: 8),
+        Row(children: [
+          Expanded(child: Btn('نسخ الآن', height: 42, onPressed: () => runBackup(context, store))),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: store.snoozeBackup,
+            child: Text('لاحقًا', style: ts(context, size: 14, weight: FontWeight.w700, color: p.muted)),
+          ),
+        ]),
+      ]),
+    );
+  }
+}
+
+class _ArchivedRow extends StatelessWidget {
+  const _ArchivedRow({required this.c, required this.onOpen, required this.onRestore});
+  final Creditor c;
+  final VoidCallback onOpen;
+  final VoidCallback onRestore;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Pal.of(context);
+    return Material(
+      color: p.surface2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: p.line)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onOpen,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 8, 6, 8),
+          child: Row(children: [
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: ts(context, size: 15, weight: FontWeight.w700)),
+                Text('إجمالي ${fmt(c.total)} $kCurrency — مسدد', style: ts(context, size: 12, color: p.muted)),
+              ]),
+            ),
+            TextButton(
+              onPressed: onRestore,
+              child: Text('إعادة', style: ts(context, size: 13, weight: FontWeight.w700, color: p.accent)),
+            ),
+          ]),
+        ),
+      ),
     );
   }
 }
