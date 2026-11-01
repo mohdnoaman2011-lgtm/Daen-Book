@@ -13,14 +13,12 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  bool _showArchive = false;
   DebtStore get store => widget.store;
 
   @override
   Widget build(BuildContext context) {
     final p = Pal.of(context);
     final rows = store.sorted;
-    final archived = store.archivedList;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
@@ -86,27 +84,6 @@ class _HomePageState extends State<HomePage> {
             _CreditorRow(rank: i + 1, c: rows[i], onTap: () => store.openStatement(rows[i].id)),
             const SizedBox(height: 10),
           ],
-        if (archived.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: () => setState(() => _showArchive = !_showArchive),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(children: [
-                Icon(Icons.inventory_2_outlined, size: 20, color: p.muted),
-                const SizedBox(width: 8),
-                Expanded(child: Text('الأرشيف (${archived.length})', style: ts(context, size: 15, weight: FontWeight.w700, color: p.muted))),
-                Icon(_showArchive ? Icons.expand_less : Icons.expand_more, color: p.muted),
-              ]),
-            ),
-          ),
-          if (_showArchive)
-            for (final c in archived) ...[
-              const SizedBox(height: 8),
-              _ArchivedRow(c: c, onOpen: () => store.openStatement(c.id), onRestore: () => store.unarchiveCreditor(c)),
-            ],
-        ],
       ],
     );
   }
@@ -145,41 +122,6 @@ class _BackupBanner extends StatelessWidget {
           ),
         ]),
       ]),
-    );
-  }
-}
-
-class _ArchivedRow extends StatelessWidget {
-  const _ArchivedRow({required this.c, required this.onOpen, required this.onRestore});
-  final Creditor c;
-  final VoidCallback onOpen;
-  final VoidCallback onRestore;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = Pal.of(context);
-    return Material(
-      color: p.surface2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: p.line)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onOpen,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 8, 6, 8),
-          child: Row(children: [
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: ts(context, size: 15, weight: FontWeight.w700)),
-                Text('إجمالي ${fmt(c.total)} $kCurrency — مسدد', style: ts(context, size: 12, color: p.muted)),
-              ]),
-            ),
-            TextButton(
-              onPressed: onRestore,
-              child: Text('إعادة', style: ts(context, size: 13, weight: FontWeight.w700, color: p.accent)),
-            ),
-          ]),
-        ),
-      ),
     );
   }
 }
