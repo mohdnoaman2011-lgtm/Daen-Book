@@ -366,21 +366,6 @@ class _PurchasesTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = Pal.of(context);
-    // الرؤوس والأرقام تتقلص تلقائيًا بدل أن تنكسر على سطرين.
-    Widget cell(String t, {bool head = false, bool bold = false, Color? color, bool fit = false}) {
-      final text = Text(t,
-          maxLines: (head || fit) ? 1 : null,
-          style: ts(context,
-              size: head ? 12 : 13,
-              weight: head || bold ? FontWeight.w700 : FontWeight.w400,
-              color: color ?? (head ? p.muted : p.ink)));
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 3),
-        child: (head || fit)
-            ? FittedBox(fit: BoxFit.scaleDown, alignment: AlignmentDirectional.centerStart, child: text)
-            : text,
-      );
-    }
 
     if (c.purchases.isEmpty) {
       return Padding(
@@ -389,42 +374,41 @@ class _PurchasesTable extends StatelessWidget {
       );
     }
 
-    return Table(
-      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-      columnWidths: const {
-        0: FixedColumnWidth(48),
-        1: FlexColumnWidth(),
-        2: FixedColumnWidth(56),
-        3: FixedColumnWidth(46),
-        4: FixedColumnWidth(62),
-        5: FixedColumnWidth(34),
-      },
-      border: TableBorder(horizontalInside: BorderSide(color: p.line)),
-      children: [
-        TableRow(
-          decoration: BoxDecoration(border: Border(bottom: BorderSide(color: p.line, width: 2))),
-          children: [
-            cell('التاريخ', head: true),
-            cell('المنتج', head: true),
-            cell('السعر', head: true),
-            cell('الكمية', head: true),
-            cell('الإجمالي', head: true),
-            const SizedBox(),
-          ],
-        ),
-        for (var i = 0; i < c.purchases.length; i++)
-          TableRow(children: [
-            cell(fmtDate(c.purchases[i].date), color: p.muted, fit: true),
-            cell(c.purchases[i].product, bold: true),
-            cell(fmt(c.purchases[i].price), fit: true),
-            cell(fmt(c.purchases[i].qty), fit: true),
-            cell(fmt(c.purchases[i].total), bold: true, fit: true),
+    // كل عملية في بطاقة صفّين: الاسم كاملًا في الأعلى، وتحته التاريخ والكمية والسعر،
+    // والإجمالي في الجانب. هكذا لا تُقطع الأسماء الطويلة.
+    return Column(children: [
+      Container(
+        padding: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(border: Border(bottom: BorderSide(color: p.line, width: 2))),
+        child: Row(children: [
+          Expanded(child: Text('المنتج / التاريخ × الكمية × السعر', style: ts(context, size: 12, weight: FontWeight.w700, color: p.muted))),
+          Text('الإجمالي', style: ts(context, size: 12, weight: FontWeight.w700, color: p.muted)),
+          const SizedBox(width: 34),
+        ]),
+      ),
+      for (var i = 0; i < c.purchases.length; i++)
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(border: Border(bottom: BorderSide(color: p.line))),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(c.purchases[i].product, style: ts(context, size: 14, weight: FontWeight.w700)),
+                const SizedBox(height: 2),
+                Text(
+                  '${fmtDate(c.purchases[i].date)}  •  ${fmt(c.purchases[i].qty)} × ${fmt(c.purchases[i].price)}',
+                  style: ts(context, size: 12, color: p.muted),
+                ),
+              ]),
+            ),
+            const SizedBox(width: 8),
+            Text(fmt(c.purchases[i].total), style: ts(context, size: 14, weight: FontWeight.w800)),
             _RowMenu(
               items: const {'edit': 'تعديل', 'delete': 'حذف'},
               onSelected: (v) => v == 'edit' ? onEdit(i) : onDelete(i),
             ),
           ]),
-      ],
-    );
+        ),
+    ]);
   }
 }
