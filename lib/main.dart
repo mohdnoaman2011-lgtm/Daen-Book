@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'pages/add_page.dart';
 import 'pages/home_page.dart';
+import 'pages/lock_page.dart';
 import 'pages/more_page.dart';
 import 'pages/splash_page.dart';
 import 'pages/statement_page.dart';
@@ -34,6 +35,8 @@ Future<void> main() async {
     return;
   }
   runApp(DebtApp(store: store));
+  // نسخة تلقائية أسبوعية داخل التطبيق (لا تعطّل التشغيل إن فشلت).
+  store.autoBackupIfDue();
 }
 
 /// تظهر عند فشل تحميل البيانات عند التشغيل، لمعرفة السبب.
@@ -85,7 +88,7 @@ class DebtApp extends StatelessWidget {
         theme: buildTheme(Brightness.light),
         darkTheme: buildTheme(Brightness.dark),
         themeMode: store.themeMode,
-        home: SplashPage(next: Shell(store: store)),
+        home: SplashPage(next: LockGate(store: store, child: Shell(store: store))),
       ),
     );
   }
