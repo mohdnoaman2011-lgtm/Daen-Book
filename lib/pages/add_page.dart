@@ -41,7 +41,15 @@ class _AddPageState extends State<AddPage> {
     super.dispose();
   }
 
-  bool get _isNew => _newMode || store.creditors.isEmpty;
+  /// الدائن المحدد للإضافة: لا يكون مؤرشفًا أبدًا (الأرشيف للاطلاع فقط).
+  Creditor? get _target {
+    final s = store.selected;
+    if (s != null && !s.archived) return s;
+    final a = store.sorted;
+    return a.isEmpty ? null : a.first;
+  }
+
+  bool get _isNew => _newMode || store.active.isEmpty;
 
   /// توحيد الحروف العربية لتسهيل البحث (أ إ آ ← ا، ة ← ه، ى ← ي، وإزالة التشكيل).
   String _norm(String s) {
@@ -59,7 +67,7 @@ class _AddPageState extends State<AddPage> {
   /// مع تصفية الأسماء حسب نص البحث.
   List<Creditor> get _sorted {
     final q = _norm(_search.text);
-    final l = store.creditors.where((c) => q.isEmpty || _norm(c.name).contains(q)).toList();
+    final l = store.active.where((c) => q.isEmpty || _norm(c.name).contains(q)).toList();
     l.sort((a, b) {
       final ca = a.purchases.length + a.payments.length;
       final cb = b.purchases.length + b.payments.length;
@@ -73,7 +81,7 @@ class _AddPageState extends State<AddPage> {
   Creditor? _existing(String name) {
     final n = _norm(name);
     if (n.isEmpty) return null;
-    for (final c in store.creditors) {
+    for (final c in store.active) {
       if (_norm(c.name) == n) return c;
     }
     return null;
@@ -136,7 +144,7 @@ class _AddPageState extends State<AddPage> {
       }
     }
     final name = store.addPurchase(
-      creditorId: store.selected?.id,
+      creditorId: _target?.id,
       newName: _isNew ? _name.text : null,
       product: _product.text,
       price: price,
@@ -159,7 +167,7 @@ class _AddPageState extends State<AddPage> {
   @override
   Widget build(BuildContext context) {
     final p = Pal.of(context);
-    final selected = store.selected;
+    final selected = _target;
     final lineTotal = (parseNum(_price.text) ?? 0) * (parseNum(_qty.text) ?? 0);
     final list = _sorted;
     final searching = _search.text.trim().isNotEmpty;
@@ -173,11 +181,11 @@ class _AddPageState extends State<AddPage> {
         const SizedBox(height: 16),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Text('اسم الدائن', style: ts(context, size: 14, weight: FontWeight.w600)),
-          if (store.creditors.length > 1)
+          if (store.active.length > 1)
             Text('الأكثر تعاملًا أولًا', style: ts(context, size: 13, weight: FontWeight.w600, color: p.accent)),
         ]),
         const SizedBox(height: 10),
-        if (store.creditors.isNotEmpty) ...[
+        if (store.active.isNotEmpty) ...[
           TextField(
             controller: _search,
             onChanged: (_) => setState(() {}),

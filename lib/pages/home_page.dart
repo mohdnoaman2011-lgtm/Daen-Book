@@ -13,12 +13,14 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  bool _showArchive = false;
   DebtStore get store => widget.store;
 
   @override
   Widget build(BuildContext context) {
     final p = Pal.of(context);
     final rows = store.sorted;
+    final archived = store.archivedList;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
@@ -84,6 +86,48 @@ class _HomePageState extends State<HomePage> {
             _CreditorRow(rank: i + 1, c: rows[i], onTap: () => store.openStatement(rows[i].id)),
             const SizedBox(height: 10),
           ],
+        if (archived.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => setState(() => _showArchive = !_showArchive),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(children: [
+                Icon(Icons.inventory_2_outlined, size: 20, color: p.muted),
+                const SizedBox(width: 8),
+                Expanded(child: Text('الأرشيف — حسابات مسددة (${archived.length})', style: ts(context, size: 15, weight: FontWeight.w700, color: p.muted))),
+                Icon(_showArchive ? Icons.expand_less : Icons.expand_more, color: p.muted),
+              ]),
+            ),
+          ),
+          if (_showArchive)
+            for (final c in archived) ...[
+              const SizedBox(height: 8),
+              _ArchivedRow(
+                c: c,
+                onOpen: () => store.openStatement(c.id),
+                onDelete: () async {
+                  final ok = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      backgroundColor: p.surface,
+                      title: Text('حذف من الأرشيف', style: ts(ctx, size: 18, weight: FontWeight.w800)),
+                      content: Text('سيُحذف حساب «${c.name}» وكل بياناته القديمة نهائيًا. هل أنت متأكد؟', style: ts(ctx, size: 14, height: 1.6)),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('إلغاء', style: ts(ctx, size: 14, weight: FontWeight.w700, color: p.muted))),
+                        TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('حذف', style: ts(ctx, size: 14, weight: FontWeight.w700, color: p.debt))),
+                      ],
+                    ),
+                  );
+                  if (ok == true && context.mounted) {
+                    store.removeCreditor(c.id);
+                    toast(context, 'تم حذف الحساب من الأرشيف', actionLabel: 'تراجع', onAction: store.undoRemove);
+                  }
+                },
+              ),
+            ],
+        ],
       ],
     );
   }
@@ -192,6 +236,42 @@ class _CreditorRow extends StatelessWidget {
                   style: ts(context, size: 17, weight: FontWeight.w800, color: c.settled ? p.ok : p.debt)),
               Text(c.settled ? 'لا دين' : 'متبقي $kCurrency', style: ts(context, size: 12, color: p.muted)),
             ]),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+class _ArchivedRow extends StatelessWidget {
+  const _ArchivedRow({required this.c, required this.onOpen, required this.onDelete});
+  final Creditor c;
+  final VoidCallback onOpen;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Pal.of(context);
+    return Material(
+      color: p.surface2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: p.line)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onOpen,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 8, 4, 8),
+          child: Row(children: [
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: ts(context, size: 15, weight: FontWeight.w700)),
+                Text('إجمالي ${fmt(c.total)} $kCurrency — مسدد', style: ts(context, size: 12, color: p.muted)),
+              ]),
+            ),
+            IconButton(
+              tooltip: 'حذف من الأرشيف',
+              icon: Icon(Icons.delete_outline, color: p.debt),
+              onPressed: onDelete,
+            ),
           ]),
         ),
       ),

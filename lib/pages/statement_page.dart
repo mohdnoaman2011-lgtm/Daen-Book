@@ -58,12 +58,13 @@ class _StatementPageState extends State<StatementPage> {
   }
 
   /// بعد كل دفعة: نافذة تعرض النتيجة مع زرّي الإيصال والمشاركة.
-  /// عند اكتمال السداد يُحذف الدائن من جميع السجلات (مع زر «تراجع» لبضع ثوانٍ).
+  /// عند اكتمال السداد يُنقل الدائن إلى الأرشيف مع بقاء بياناته القديمة (مع زر «تراجع»).
   Future<void> _afterPayment(Creditor c, double paid) async {
     final idx = c.payments.length - 1;
     final settled = c.settled;
     final name = c.name;
     final remaining = c.remaining;
+    if (settled) store.archiveCreditor(c);
     if (!mounted) return;
     final p = Pal.of(context);
     await showDialog<void>(
@@ -79,7 +80,7 @@ class _StatementPageState extends State<StatementPage> {
           Text('${fmt(paid)} $kCurrency من $name', style: ts(ctx, size: 15, weight: FontWeight.w700)),
           const SizedBox(height: 8),
           Text(
-            settled ? 'اكتمل السداد، وسيُحذف الدائن من جميع السجلات.' : 'المتبقي: ${fmt(remaining)} $kCurrency',
+            settled ? 'اكتمل السداد، ونُقل الدائن إلى الأرشيف مع بقاء بياناته.' : 'المتبقي: ${fmt(remaining)} $kCurrency',
             style: ts(ctx, size: 14, color: p.muted),
           ),
         ]),
@@ -107,11 +108,8 @@ class _StatementPageState extends State<StatementPage> {
         ],
       ),
     );
-    if (settled) {
-      store.removeCreditor(c.id);
-      if (mounted) {
-        toast(context, 'تم السداد الكامل وحُذف $name من جميع السجلات', actionLabel: 'تراجع', onAction: store.undoRemove);
-      }
+    if (settled && mounted) {
+      toast(context, 'نُقل $name إلى الأرشيف', actionLabel: 'تراجع', onAction: store.undoLast);
     }
   }
 
@@ -172,7 +170,7 @@ class _StatementPageState extends State<StatementPage> {
           AppCard(
             radius: 16,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
-            child: Center(child: Text('لا يوجد دائنون مسجلون. أضف مشتريات أولًا.', textAlign: TextAlign.center, style: ts(context, size: 15, color: p.muted))),
+            child: Center(child: Text(store.creditors.isEmpty ? 'لا يوجد دائنون مسجلون. أضف مشتريات أولًا.' : 'لا يوجد دائنون نشطون. الدائنون المسددون في الأرشيف بالشاشة الرئيسية.', textAlign: TextAlign.center, style: ts(context, size: 15, color: p.muted))),
           )
         else ...[
           Text('اختر الدائن', style: ts(context, size: 14, weight: FontWeight.w600)),
@@ -181,8 +179,8 @@ class _StatementPageState extends State<StatementPage> {
             value: c.id,
             isExpanded: true,
             items: [
-              for (final x in store.creditors)
-                DropdownMenuItem(value: x.id, child: Text(x.name, style: ts(context, size: 16))),
+              for (final x in [...store.active, if (c.archived) c])
+                DropdownMenuItem(value: x.id, child: Text(c.archived && x.id == c.id ? '${x.name} (مؤرشف)' : x.name, style: ts(context, size: 16))),
             ],
             onChanged: (v) {
               if (v != null) store.select(v);
@@ -298,6 +296,25 @@ class _StatementPageState extends State<StatementPage> {
                 Text('100%', style: ts(context, size: 11, color: p.muted)),
               ]),
               const SizedBox(height: 14),
+              if (c.archived) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(color: p.surface2, borderRadius: BorderRadius.circular(12)),
+                  child: Text(
+                    'هذا الحساب مؤرشف (مسدد بالكامل). أي دين جديد لهذا الدائن يُسجَّل في حساب جديد منفصل.',
+                    style: ts(context, size: 13, color: p.muted, height: 1.6),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ] else if (c.settled && c.purchases.isNotEmpty) ...[
+                Btn('نقل الدائن إلى الأرشيف', kind: BtnKind.outline, height: 48, onPressed: () {
+                  final n = c.name;
+                  store.archiveCreditor(c);
+                  toast(context, 'نُقل $n إلى الأرشيف', actionLabel: 'تراجع', onAction: store.undoLast);
+                }),
+                const SizedBox(height: 10),
+              ],
               Row(children: [
                 Expanded(child: Btn('حفظ التقرير PDF', kind: BtnKind.red, icon: Icons.download, height: 50, onPressed: () => _savePdf(c))),
                 const SizedBox(width: 10),
