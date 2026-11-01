@@ -52,28 +52,36 @@ class DebtStore extends ChangeNotifier {
   }
 
   // ---------- قراءة ----------
+  /// الدائنون النشطون (غير المؤرشفين).
+  List<Creditor> get active => creditors.where((c) => !c.archived).toList();
+
+  /// الدائنون المؤرشفون (الأحدث أولًا).
+  List<Creditor> get archivedList =>
+      creditors.where((c) => c.archived).toList().reversed.toList();
+
   List<Creditor> get sorted {
-    final l = [...creditors];
+    final l = active;
     l.sort((a, b) => b.remaining.compareTo(a.remaining));
     return l;
   }
 
-  double get totalDebt => creditors.fold<double>(0, (a, c) => a + c.total);
-  double get totalPaid => creditors.fold<double>(0, (a, c) => a + c.paid);
+  double get totalDebt => active.fold<double>(0, (a, c) => a + c.total);
+  double get totalPaid => active.fold<double>(0, (a, c) => a + c.paid);
   double get totalRemaining =>
-      creditors.fold<double>(0, (a, c) => a + c.remaining);
+      active.fold<double>(0, (a, c) => a + c.remaining);
   int get overallPercent => totalDebt > 0
       ? (totalPaid / totalDebt * 100).clamp(0, 100).round()
       : 0;
 
   /// عدد الدائنين الذين ما زال عليهم متبقٍ.
-  int get owingCount => creditors.where((c) => !c.settled).length;
+  int get owingCount => active.where((c) => !c.settled).length;
 
   Creditor? get selected {
     for (final c in creditors) {
       if (c.id == selectedId) return c;
     }
-    return creditors.isEmpty ? null : sorted.first;
+    final a = sorted;
+    return a.isEmpty ? null : a.first;
   }
 
   // ---------- تنقل ----------
@@ -110,7 +118,15 @@ class DebtStore extends ChangeNotifier {
       target = Creditor(id: nextId, name: newName.trim());
       creditors.add(target);
     } else {
-      target = creditors.firstWhere((c) => c.id == creditorId);
+      final found = creditors.firstWhere((c) => c.id == creditorId);
+      if (found.archived) {
+        // الدائن المؤرشف لا تُضاف إليه ديون جديدة: نُنشئ سجلًا جديدًا منفصلًا بنفس الاسم.
+        final nextId = creditors.fold<int>(0, (m, c) => math.max(m, c.id)) + 1;
+        target = Creditor(id: nextId, name: found.name);
+        creditors.add(target);
+      } else {
+        target = found;
+      }
     }
     target.purchases.add(Purchase(
       product: product.trim(),
@@ -176,6 +192,20 @@ class DebtStore extends ChangeNotifier {
     final u = _undo;
     _undo = null;
     u?.call();
+  }
+
+  // ---------- الأرشفة ----------
+  /// ينقل الدائن (المسدّد) إلى الأرشيف مع بقاء بياناته القديمة.
+  void archiveCreditor(Creditor c) {
+    c.archived = true;
+    final a = sorted;
+    selectedId = a.isEmpty ? null : a.first.id;
+    _undo = () {
+      c.archived = false;
+      selectedId = c.id;
+      _commit();
+    };
+    _commit();
   }
 
   Creditor? _lastRemoved;
