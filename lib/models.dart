@@ -87,13 +87,11 @@ class Creditor {
     required this.name,
     List<Purchase>? purchases,
     List<Payment>? payments,
-    this.archived = false,
   })  : purchases = purchases ?? [],
         payments = payments ?? [];
 
   final int id;
   final String name;
-  bool archived; // مؤرشف: يختفي من القائمة الرئيسية دون حذف بياناته
   final List<Purchase> purchases;
   final List<Payment> payments;
 
@@ -107,7 +105,6 @@ class Creditor {
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
-        'archived': archived,
         'purchases': purchases.map((e) => e.toJson()).toList(),
         'payments': payments.map((e) => e.toJson()).toList(),
       };
@@ -115,7 +112,6 @@ class Creditor {
   factory Creditor.fromJson(Map<String, dynamic> j) => Creditor(
         id: j['id'] as int,
         name: j['name'] as String,
-        archived: (j['archived'] as bool?) ?? false,
         purchases: (j['purchases'] as List)
             .map((e) => Purchase.fromJson(e as Map<String, dynamic>))
             .toList(),

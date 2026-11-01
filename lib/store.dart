@@ -29,7 +29,7 @@ class DebtStore extends ChangeNotifier {
   DateTime? lastBackup;
   bool backupSnoozed = false; // إخفاء التذكير حتى إغلاق التطبيق
 
-  // ---------- للتراجع عن آخر حذف/أرشفة ----------
+  // ---------- للتراجع عن آخر حذف ----------
   VoidCallback? _undo;
 
   Future<void> load() async {
@@ -52,36 +52,28 @@ class DebtStore extends ChangeNotifier {
   }
 
   // ---------- قراءة ----------
-  /// الدائنون غير المؤرشفين.
-  List<Creditor> get active => creditors.where((c) => !c.archived).toList();
-
-  /// الدائنون المؤرشفون (الأحدث إضافةً أولًا).
-  List<Creditor> get archivedList =>
-      creditors.where((c) => c.archived).toList().reversed.toList();
-
   List<Creditor> get sorted {
-    final l = active;
+    final l = [...creditors];
     l.sort((a, b) => b.remaining.compareTo(a.remaining));
     return l;
   }
 
-  double get totalDebt => active.fold<double>(0, (a, c) => a + c.total);
-  double get totalPaid => active.fold<double>(0, (a, c) => a + c.paid);
+  double get totalDebt => creditors.fold<double>(0, (a, c) => a + c.total);
+  double get totalPaid => creditors.fold<double>(0, (a, c) => a + c.paid);
   double get totalRemaining =>
-      active.fold<double>(0, (a, c) => a + c.remaining);
+      creditors.fold<double>(0, (a, c) => a + c.remaining);
   int get overallPercent => totalDebt > 0
       ? (totalPaid / totalDebt * 100).clamp(0, 100).round()
       : 0;
 
   /// عدد الدائنين الذين ما زال عليهم متبقٍ.
-  int get owingCount => active.where((c) => !c.settled).length;
+  int get owingCount => creditors.where((c) => !c.settled).length;
 
   Creditor? get selected {
     for (final c in creditors) {
       if (c.id == selectedId) return c;
     }
-    final a = sorted;
-    return a.isEmpty ? null : a.first;
+    return creditors.isEmpty ? null : sorted.first;
   }
 
   // ---------- تنقل ----------
@@ -126,7 +118,6 @@ class DebtStore extends ChangeNotifier {
       qty: qty,
       date: date ?? DateTime.now(),
     ));
-    target.archived = false; // عودة الدائن المؤرشف عند شراء جديد
     selectedId = target.id;
     _commit();
     return target.name;
@@ -180,30 +171,11 @@ class DebtStore extends ChangeNotifier {
     _commit();
   }
 
-  /// يتراجع عن آخر حذف أو أرشفة.
+  /// يتراجع عن آخر حذف لعملية أو دفعة.
   void undoLast() {
     final u = _undo;
     _undo = null;
     u?.call();
-  }
-
-  // ---------- الأرشفة ----------
-  void archiveCreditor(Creditor c) {
-    c.archived = true;
-    final a = sorted;
-    selectedId = a.isEmpty ? null : a.first.id;
-    _undo = () {
-      c.archived = false;
-      selectedId = c.id;
-      _commit();
-    };
-    _commit();
-  }
-
-  void unarchiveCreditor(Creditor c) {
-    c.archived = false;
-    selectedId = c.id;
-    _commit();
   }
 
   Creditor? _lastRemoved;
