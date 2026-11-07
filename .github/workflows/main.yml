@@ -5,6 +5,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# إلغاء البناء القديم إن دفعت تعديلًا جديدًا قبل انتهائه
+concurrency:
+  group: build-apk
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -30,7 +35,7 @@ jobs:
       - name: Set compile SDK
         run: |
           mkdir -p ~/.gradle/init.d
-          cat > ~/.gradle/init.d/compile-sdk.gradle <<'EOF'
+          cat > ~/.gradle/init.d/compile-sdk.gradle <<'GRADLE'
           allprojects {
             afterEvaluate { p ->
               if (p.hasProperty('android')) {
@@ -38,7 +43,7 @@ jobs:
               }
             }
           }
-          EOF
+          GRADLE
 
       - name: Get packages
         run: flutter pub get
@@ -53,9 +58,9 @@ jobs:
           sed -i 's|android:label="[^"]*"|android:label="دفتر الديون"|' android/app/src/main/AndroidManifest.xml
 
       - name: Build APK
-        run: flutter build apk --release --no-shrink
+        run: flutter build apk --release --no-shrink --build-number=${{ github.run_number }}
 
       - uses: actions/upload-artifact@v4
         with:
-          name: daen-book-apk
+          name: daen-book-apk-${{ github.run_number }}
           path: build/app/outputs/flutter-apk/app-release.apk
