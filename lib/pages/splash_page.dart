@@ -66,7 +66,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
               opacity: _logoFade,
               child: ScaleTransition(
                 scale: _logoScale,
-                child: Image.asset('assets/images/logo.png', width: w * 0.62),
+                child: Image.asset('assets/images/logo.png', width: (w * 0.9).clamp(0.0, 460.0)),
               ),
             ),
             const SizedBox(height: 18),
