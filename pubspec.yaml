@@ -24,6 +24,8 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.1
+  flutter_native_splash: ^2.4.0
 
 # تثبيت نسخة مكتبة الحفظ: النسخة 2.5.0 (صدرت 17 أكتوبر 2026) تُسقط التطبيق عند التشغيل.
 dependency_overrides:
@@ -33,3 +35,6 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/logo.png
+    - assets/images/logo_dark.png
+    - assets/images/icon.png
+    - assets/images/icon_foreground.png
