@@ -53,8 +53,9 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     final w = MediaQuery.of(context).size.width;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: dark ? const Color(0xFF101615) : _bg,
       body: SafeArea(
         child: SizedBox(
           width: double.infinity,
@@ -66,7 +67,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
               opacity: _logoFade,
               child: ScaleTransition(
                 scale: _logoScale,
-                child: Image.asset('assets/images/logo.png', width: (w * 0.9).clamp(0.0, 460.0)),
+                child: Image.asset(dark ? 'assets/images/logo_dark.png' : 'assets/images/logo.png', width: (w * 0.9).clamp(0.0, 460.0)),
               ),
             ),
             const SizedBox(height: 18),
@@ -76,7 +77,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
                 Container(width: 44, height: 3, decoration: BoxDecoration(color: _gold, borderRadius: BorderRadius.circular(2))),
                 const SizedBox(height: 14),
                 Text('سجّل ديونك وتابع سدادها بسهولة',
-                    style: ts(context, size: 15, weight: FontWeight.w600, color: _navy.withOpacity(0.75))),
+                    style: ts(context, size: 15, weight: FontWeight.w600, color: dark ? const Color(0xFFEAF0ED) : _navy.withOpacity(0.75))),
               ]),
             ),
             const Spacer(flex: 4),

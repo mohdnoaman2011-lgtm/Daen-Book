@@ -8,6 +8,9 @@ import '../store.dart';
 import '../ui.dart';
 import 'lock_page.dart';
 
+/// رقم الإصدار: يمرره البناء عبر --dart-define=APP_VERSION=...
+const String kAppVersion = String.fromEnvironment('APP_VERSION', defaultValue: 'dev');
+
 class MorePage extends StatelessWidget {
   const MorePage({super.key, required this.store});
   final DebtStore store;
@@ -221,6 +224,13 @@ class MorePage extends StatelessWidget {
               }
             }),
           ]),
+        ),
+        const SizedBox(height: 20),
+        Center(
+          child: Text(
+            kAppVersion == 'dev' ? 'دفتر الديون — نسخة تجريبية' : 'دفتر الديون — الإصدار $kAppVersion',
+            style: ts(context, size: 13, weight: FontWeight.w600, color: p.muted),
+          ),
         ),
       ],
     );
